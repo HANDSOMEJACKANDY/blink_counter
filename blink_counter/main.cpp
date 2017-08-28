@@ -41,7 +41,7 @@ double minDist = 10.0;  // 两特征点之间的最小距离
 vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
 vector<float> err;
 // filtering displacement
-float percentage = 1/10;
+float percentage = 1/5; //seems perfect with 1/5
 
 void thresholdAndOpen(Mat &src, Mat &dst); //threshold and consequent bluring operation
 void thresholdInRange(Mat &src, Mat &dst); //figure out the range of the eye_blink_diff
@@ -96,29 +96,28 @@ int main(){
         colorFrame.copyTo(curFrame);
         cvtColor(curFrame, curFrame, COLOR_BGR2GRAY);
         residue = curFrame - prevFrame;
-        
-        //thresholdAndOpen(residue, residue);
-        //thresholdInRange(residue, residue);
+
         
         if(!is_tracking){
             if(findMostRightEye(detectEyeAndFace(curFrame), eye)){
-                trackingBox = enlargedRect(eye, 3);
-                rectangle(colorFrame, trackingBox, Scalar(0, 255, 0), 3); // draw eyes onto the colorframe
+                trackingBox = eye;
                 is_tracking = true;
             }
         }
         else{
             if(!trackingBox.empty()){
-                imshow("eye", colorFrame(enlargedRect(trackingBox, 0.5)));
-                opticalFlow(trackingBox, colorFrame);
-                trackingBox += Point(filteredDisplacement()); // may get out of the screen……
+                opticalFlow(enlargedRect(trackingBox, 3), colorFrame);
+                trackingBox += Point(filteredDisplacement());
+                trackingBox = enlargedRect(trackingBox, 1);
+                
+                if(!trackingBox.empty()){
+                    rectangle(colorFrame, enlargedRect(trackingBox, 1), Scalar(255, 0, 0), 3);
+                    imshow("eye", colorFrame(enlargedRect(trackingBox, 1)));
+                }
             }
             else
                 is_tracking = false;
         }
-        
-        
-        rectangle(colorFrame, enlargedRect(trackingBox, 0.5), Scalar(255, 0, 0), 3);
         
         imshow("camera", colorFrame);
         imshow("residue", residue);
@@ -186,9 +185,13 @@ bool findMostRightEye(vector<Rect> eyes, Rect &eye){
 Rect enlargedRect(Rect src, float times){
     Point tl, br;
     tl.x = max(src.tl().x - src.width * (times - 1) / 2, 0);
+    tl.x = min(tl.x, curFrame.size().width);
     tl.y = max(src.tl().y - src.height * (times - 1) / 2, 0);
+    tl.y = min(tl.y, curFrame.size().height);
     br.x = min(src.br().x + src.width * (times - 1) / 2, curFrame.size().width);
+    br.x = max(br.x, 0);
     br.y = min(src.br().y + src.height * (times - 1) / 2, curFrame.size().height);
+    br.y = max(br.y, 0);
     return Rect(tl, br);
 }
 
