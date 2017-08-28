@@ -35,11 +35,13 @@ Mat curFrame, prevFrame, colorFrame;
 vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
 vector<Point2f> initPoint;    // 初始化跟踪点的位置
 vector<Point2f> features; // 检测的特征
-int maxCount = 2000;         // 检测的最大特征数
-double qLevel = 0.001;   // 特征检测的等级
+int maxCount = 500;         // 检测的最大特征数
+double qLevel = 0.01;   // 特征检测的等级
 double minDist = 10.0;  // 两特征点之间的最小距离
 vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
 vector<float> err;
+// filtering displacement
+float percentage = 1/10;
 
 void thresholdAndOpen(Mat &src, Mat &dst); //threshold and consequent bluring operation
 void thresholdInRange(Mat &src, Mat &dst); //figure out the range of the eye_blink_diff
@@ -65,6 +67,7 @@ int main(){
     Mat residue;
     namedWindow("camera", 1);
     namedWindow("residue", 1);
+    namedWindow("eye", 1);
     cap >> prevFrame;
     pyrDown(prevFrame, prevFrame);
     prevFrame.copyTo(colorFrame);
@@ -99,22 +102,23 @@ int main(){
         
         if(!is_tracking){
             if(findMostRightEye(detectEyeAndFace(curFrame), eye)){
-                trackingBox = enlargedRect(eye, 2);
+                trackingBox = enlargedRect(eye, 3);
                 rectangle(colorFrame, trackingBox, Scalar(0, 255, 0), 3); // draw eyes onto the colorframe
                 is_tracking = true;
             }
         }
         else{
             if(!trackingBox.empty()){
+                imshow("eye", colorFrame(enlargedRect(trackingBox, 0.5)));
                 opticalFlow(trackingBox, colorFrame);
                 trackingBox += Point(filteredDisplacement()); // may get out of the screen……
             }
             else
                 is_tracking = false;
         }
-
-        rectangle(colorFrame, trackingBox, Scalar(255, 0, 0), 3);
         
+        
+        rectangle(colorFrame, enlargedRect(trackingBox, 0.5), Scalar(255, 0, 0), 3);
         
         imshow("camera", colorFrame);
         imshow("residue", residue);
@@ -246,20 +250,27 @@ Point2f filteredDisplacement(){
     for(size_t i=0; i<size; i++){
         dis[i] = point[0][i] - point[1][i];
     }
-//    sort(dis.begin(), dis.end(), compX);
-//    for(vector<Point2f>::iterator iter=dis.end(); iter!=dis.end() - size/20; iter--){
-//        dis.erase(iter);
-//    }
-//    for(vector<Point2f>::iterator iter=dis.begin(); iter!=dis.begin() + size/20; iter++){
-//        dis.erase(iter);
-//    }
-//    sort(dis.begin(), dis.end(), compX);
-//    for(vector<Point2f>::iterator iter=dis.end(); iter!=dis.end() - size/20; iter--){
-//        dis.erase(iter);
-//    }
-//    for(vector<Point2f>::iterator iter=dis.begin(); iter!=dis.begin() + size/20; iter++){
-//        dis.erase(iter);
-//    }
+    vector<Point2f>::iterator iter;
+    sort(dis.begin(), dis.end(), compX);
+    iter = dis.begin();
+    for(int i=0; i<size*percentage; i++){
+        dis.erase(iter++);
+    }
+    iter = dis.end();
+    for(int i=0; i<size*percentage; i++){
+        dis.erase(--iter);
+    }
+    
+    sort(dis.begin(), dis.end(), compY);
+    iter = dis.begin();
+    for(int i=0; i<size*percentage; i++){
+        dis.erase(iter++);
+    }
+    iter = dis.end();
+    for(int i=0; i<size*percentage; i++){
+        dis.erase(--iter);
+    }
+    
     for(size_t i=0; i<dis.size(); i++){
         disX += dis[i].x;
         disY += dis[i].y;
