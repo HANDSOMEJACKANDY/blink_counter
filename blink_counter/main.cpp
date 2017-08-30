@@ -25,35 +25,49 @@ using namespace cv;
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
+struct DisFilter{ //to filt the point that may be falsely matched
+    Point2f dis;
+    int seq;
+    bool flag;
+};
+
 string inputDir = "blink_counter/haarcascades/";
 String face_cascade_name = inputDir + "haarcascade_frontalface_alt.xml";
 String eyes_cascade_name = inputDir + "haarcascade_lefteye_2splits.xml";
 CascadeClassifier face_cascade;
 CascadeClassifier eyes_cascade;
 Mat curFrame, prevFrame, colorFrame;
+// for tracking box:
+Point tbCenter;
+int tbWidth, tbHeight;
 // for optic flow:
 vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
 vector<Point2f> initPoint;    // 初始化跟踪点的位置
 vector<Point2f> features; // 检测的特征
-int maxCount = 500;         // 检测的最大特征数
+int maxCount = 100;         // 检测的最大特征数
 double qLevel = 0.01;   // 特征检测的等级
 double minDist = 10.0;  // 两特征点之间的最小距离
 vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
 vector<float> err;
 // filtering displacement
-float percentage = 1/5; //seems perfect with 1/5
+float percentage = 1/4; //seems perfect with 1/4
 
 void thresholdAndOpen(Mat &src, Mat &dst); //threshold and consequent bluring operation
 void thresholdInRange(Mat &src, Mat &dst); //figure out the range of the eye_blink_diff
-vector<Rect> detectEyeAndFace(Mat src);
+// for eye detection
+vector<Rect> detectEyeAndFace(Mat src, bool isFace = true);
 bool findMostRightEye(vector<Rect> eyes, Rect &eye);
+// for tracking box
 Rect enlargedRect(Rect src, float times);
+Rect drawTrackingBox();
 // optic flow tracking
-void opticalFlow(Rect src, Mat &dst); //tracking ROI
+void opticalFlow(Rect src); //tracking ROI
 bool addNewPoints();
+void drawOptFlow(Mat &dst);
+// filter points
 Point2f filteredDisplacement();
-bool compX(const Point2f a, const Point2f b);
-bool compY(const Point2f a, const Point2f b);
+bool compX(const DisFilter a, const DisFilter b);
+bool compY(const DisFilter a, const DisFilter b);
 
 int main(){
     VideoCapture cap;
@@ -101,29 +115,42 @@ int main(){
         if(!is_tracking){
             if(findMostRightEye(detectEyeAndFace(curFrame), eye)){
                 trackingBox = eye;
+                //recording the info of tracking box
+                tbWidth = trackingBox.width;
+                tbHeight = trackingBox.height;
+                tbCenter = trackingBox.tl() + Point(tbWidth / 2, tbHeight / 2);
                 is_tracking = true;
             }
         }
         else{
-            if(!trackingBox.empty()){
-                opticalFlow(enlargedRect(trackingBox, 3), colorFrame);
-                trackingBox += Point(filteredDisplacement());
-                trackingBox = enlargedRect(trackingBox, 1);
-                
-                if(!trackingBox.empty()){
-                    rectangle(colorFrame, enlargedRect(trackingBox, 1), Scalar(255, 0, 0), 3);
-                    imshow("eye", colorFrame(enlargedRect(trackingBox, 1)));
+            if(!enlargedRect(trackingBox, 2.5).empty()){
+                opticalFlow(enlargedRect(trackingBox, 2.5));
+                if(point[1].size() != 0){
+                    tbCenter += Point(filteredDisplacement());
+                    trackingBox = drawTrackingBox();
+                    
+                    if(!trackingBox.empty()){
+                        rectangle(colorFrame, trackingBox, Scalar(255, 0, 0), 3);
+                        
+                        Mat eye = colorFrame(trackingBox);
+                        pyrUp(eye, eye);
+                        pyrUp(eye, eye);
+                        imshow("eye", eye);
+                    }
                 }
             }
             else
                 is_tracking = false;
         }
         
+        drawOptFlow(colorFrame);
+        
         imshow("camera", colorFrame);
         imshow("residue", residue);
         
 //        swap prev and cur
         curFrame.copyTo(prevFrame);
+        swap(point[1], point[0]);
         
         cout << ((getTickCount() - start) / getTickFrequency()) * 1000 << endl; //output the time the process takes
     }
@@ -146,19 +173,25 @@ void thresholdInRange(Mat &src, Mat &dst){
     morphologyEx(src, dst, MORPH_OPEN, ele);
 }
 
-vector<Rect> detectEyeAndFace(Mat src){
-    vector<Rect> faces, eyes;
-    
-    face_cascade.detectMultiScale( src, faces, 1.1, 2, 0, Size(30, 30));
-    
-    for( size_t i = 0; i < faces.size(); i++)
-    {
-        Mat faceROI = src( faces[i] );
+vector<Rect> detectEyeAndFace(Mat src, bool isFace){
+    vector<Rect> eyes;
+    if(isFace){
+        vector<Rect> faces;
         
-        eyes_cascade.detectMultiScale( faceROI, eyes, 1.1, 2, 0, Size(30, 30));
+        face_cascade.detectMultiScale( src, faces, 1.1, 2, 0, Size(30, 30));
         
-        for( size_t j = 0; j < eyes.size(); j++)
-            eyes[j] += faces[i].tl();
+        for( size_t i = 0; i < faces.size(); i++)
+        {
+            Mat faceROI = src( faces[i] );
+            
+            eyes_cascade.detectMultiScale( faceROI, eyes, 1.1, 2, 0, Size(30, 30));
+            
+            for( size_t j = 0; j < eyes.size(); j++)
+                eyes[j] += faces[i].tl();
+        }
+    }
+    else{
+        eyes_cascade.detectMultiScale( src, eyes, 1.1, 2, 0, Size(30, 30));
     }
     
     return eyes;
@@ -182,6 +215,10 @@ bool findMostRightEye(vector<Rect> eyes, Rect &eye){
     }
 }
 
+Rect drawTrackingBox(){
+    return enlargedRect(Rect(Point(tbCenter.x - tbWidth / 2, tbCenter.y - tbHeight / 2), Point(tbCenter.x + tbWidth / 2, tbCenter.y + tbHeight / 2)), 1);
+}
+
 Rect enlargedRect(Rect src, float times){
     Point tl, br;
     tl.x = max(src.tl().x - src.width * (times - 1) / 2, 0);
@@ -195,7 +232,7 @@ Rect enlargedRect(Rect src, float times){
     return Rect(tl, br);
 }
 
-void opticalFlow(Rect src, Mat &dst)
+void opticalFlow(Rect src)
 {
     if (addNewPoints())
     {
@@ -230,14 +267,14 @@ void opticalFlow(Rect src, Mat &dst)
     point[0].resize(k);
     point[1].resize(k);
     initPoint.resize(k);
-    
+}
+
+void drawOptFlow(Mat &dst){
     for (size_t i = 0; i<point[1].size(); i++)
     {
         line(dst, initPoint[i], point[1][i], Scalar(0, 0, 255));
         circle(dst, point[1][i], 3, Scalar(0, 255, 0), -1);
     }
-    
-    swap(point[1], point[0]);
 }
 
 bool addNewPoints()
@@ -248,47 +285,62 @@ bool addNewPoints()
 Point2f filteredDisplacement(){
     size_t size(point[0].size());
     float disX(0), disY(0);
-    vector<Point2f> dis;
-    dis.resize(size);
+    
+    vector<DisFilter> tempDis;
+    tempDis.resize(size);
     for(size_t i=0; i<size; i++){
-        dis[i] = point[0][i] - point[1][i];
-    }
-    vector<Point2f>::iterator iter;
-    sort(dis.begin(), dis.end(), compX);
-    iter = dis.begin();
-    for(int i=0; i<size*percentage; i++){
-        dis.erase(iter++);
-    }
-    iter = dis.end();
-    for(int i=0; i<size*percentage; i++){
-        dis.erase(--iter);
+        tempDis[i].dis = point[1][i] - point[0][i];
+        tempDis[i].flag = false;
+        tempDis[i].seq = int(i);
     }
     
-    sort(dis.begin(), dis.end(), compY);
-    iter = dis.begin();
+    vector<DisFilter>::iterator iter;
+    sort(tempDis.begin(), tempDis.end(), compX);
+    iter = tempDis.begin();
     for(int i=0; i<size*percentage; i++){
-        dis.erase(iter++);
+        (iter++)->flag = true;
     }
-    iter = dis.end();
+    iter = tempDis.end();
     for(int i=0; i<size*percentage; i++){
-        dis.erase(--iter);
+        (--iter)->flag = true;
     }
     
-    for(size_t i=0; i<dis.size(); i++){
-        disX += dis[i].x;
-        disY += dis[i].y;
+    sort(tempDis.begin(), tempDis.end(), compY);
+    iter = tempDis.begin();
+    for(int i=0; i<size*percentage; i++){
+        (iter++)->flag = true;
     }
-    disX /= dis.size();
-    disY /= dis.size();
+    iter = tempDis.end();
+    for(int i=0; i<size*percentage; i++){
+        (--iter)->flag = true;
+    }
+    
+    for(iter=tempDis.begin(); iter != tempDis.end();){
+        if(iter->flag == true){
+            point[0].erase(point[0].begin() + iter->seq);
+            point[1].erase(point[1].begin() + iter->seq);
+            tempDis.erase(iter);
+        }
+        else
+            iter++;
+    }
+    
+    for(size_t i=0; i<tempDis.size(); i++){
+        disX += tempDis[i].dis.x;
+        disY += tempDis[i].dis.y;
+    }
+    disX /= tempDis.size();
+    disY /= tempDis.size();
+    
     return Point2f(disX, disY);
 }
 
-bool compX(const Point2f a, const Point2f b){
-    return a.x < b.x;
+bool compX(const DisFilter a, const DisFilter b){
+    return a.dis.x < b.dis.x;
 }
 
-bool compY(const Point2f a, const Point2f b){
-    return a.y < b.y;
+bool compY(const DisFilter a, const DisFilter b){
+    return a.dis.y < b.dis.y;
 }
 
 
