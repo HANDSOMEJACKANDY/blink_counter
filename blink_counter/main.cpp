@@ -44,7 +44,7 @@ int tbWidth, tbHeight;
 vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
 vector<Point2f> initPoint;    // 初始化跟踪点的位置
 vector<Point2f> features; // 检测的特征
-int maxCount = 100;         // 检测的最大特征数
+int maxCount = 120, minCount = 100;         // 检测的最大特征数
 double qLevel = 0.01;   // 特征检测的等级
 double minDist = 10.0;  // 两特征点之间的最小距离
 vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
@@ -236,7 +236,7 @@ void opticalFlow(Rect src)
 {
     if (addNewPoints())
     {
-        goodFeaturesToTrack(curFrame(src), features, maxCount, qLevel, minDist);
+        goodFeaturesToTrack(curFrame(src), features, maxCount - int(point[0].size()), qLevel, minDist);
         for(size_t i=0; i<features.size(); i++){
             features[i] += Point2f(src.tl());
         }
@@ -256,7 +256,7 @@ void opticalFlow(Rect src)
     int k = 0;
     for (size_t i = 0; i<tempPoint[1].size(); i++)
     {
-        if (status[i] && ((abs(tempPoint[0][i].x - tempPoint[1][i].x) + abs(tempPoint[0][i].y - tempPoint[1][i].y)) > 0.1))
+        if (status[i] && ((abs(tempPoint[0][i].x - tempPoint[1][i].x) + abs(tempPoint[0][i].y - tempPoint[1][i].y)) > 0.1)) // check if the point is qualified
         {
             initPoint[k] = initPoint[i];
             point[1][k] = tempPoint[1][i] + Point2f(src.tl());
@@ -269,17 +269,17 @@ void opticalFlow(Rect src)
     initPoint.resize(k);
 }
 
+bool addNewPoints()
+{
+    return point[0].size() <= minCount;
+}
+
 void drawOptFlow(Mat &dst){
     for (size_t i = 0; i<point[1].size(); i++)
     {
         line(dst, initPoint[i], point[1][i], Scalar(0, 0, 255));
         circle(dst, point[1][i], 3, Scalar(0, 255, 0), -1);
     }
-}
-
-bool addNewPoints()
-{
-    return point[0].size() <= 20;
 }
 
 Point2f filteredDisplacement(){
