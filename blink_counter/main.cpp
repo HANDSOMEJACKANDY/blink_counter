@@ -44,7 +44,7 @@ int tbWidth, tbHeight;
 vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
 vector<Point2f> initPoint;    // 初始化跟踪点的位置
 vector<Point2f> features; // 检测的特征
-int maxCount = 120, minCount = 100;         // 检测的最大特征数
+int maxCount = 50, minCount = 10;         // 检测的最大特征数
 double qLevel = 0.01;   // 特征检测的等级
 double minDist = 10.0;  // 两特征点之间的最小距离
 vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
@@ -68,6 +68,7 @@ void drawOptFlow(Mat &dst);
 Point2f filteredDisplacement();
 bool compX(const DisFilter a, const DisFilter b);
 bool compY(const DisFilter a, const DisFilter b);
+bool compYX(const DisFilter a, const DisFilter b);
 
 int main(){
     VideoCapture cap;
@@ -315,6 +316,16 @@ Point2f filteredDisplacement(){
         (--iter)->flag = true;
     }
     
+    sort(tempDis.begin(), tempDis.end(), compYX);
+    iter = tempDis.begin();
+    for(int i=0; i<size*percentage; i++){
+        (iter++)->flag = true;
+    }
+    iter = tempDis.end();
+    for(int i=0; i<size*percentage; i++){
+        (--iter)->flag = true;
+    }
+    
     for(iter=tempDis.begin(); iter != tempDis.end();){
         if(iter->flag == true){
             point[0].erase(point[0].begin() + iter->seq);
@@ -341,6 +352,10 @@ bool compX(const DisFilter a, const DisFilter b){
 
 bool compY(const DisFilter a, const DisFilter b){
     return a.dis.y < b.dis.y;
+}
+
+bool compYX(const DisFilter a, const DisFilter b){
+    return a.dis.y / a.dis.x < b.dis.y / b.dis.x;
 }
 
 
