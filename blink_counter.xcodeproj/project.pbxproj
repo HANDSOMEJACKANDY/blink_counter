@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E83C4C321F5809A600A19433 /* eye_tracker.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E83C4C301F5809A600A19433 /* eye_tracker.cpp */; };
 		E851493F1F45EF02002B14E0 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E851493E1F45EF02002B14E0 /* main.cpp */; };
 		E8E9ADFB1F48483A002B1D05 /* libopencv_aruco.3.3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E8E9AD7D1F48483A002B1D05 /* libopencv_aruco.3.3.0.dylib */; };
 		E8E9ADFC1F48483A002B1D05 /* libopencv_aruco.3.3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E8E9AD7E1F48483A002B1D05 /* libopencv_aruco.3.3.0.dylib */; };
@@ -149,6 +150,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E83C4C301F5809A600A19433 /* eye_tracker.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = eye_tracker.cpp; sourceTree = "<group>"; };
+		E83C4C311F5809A600A19433 /* eye_tracker.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = eye_tracker.hpp; sourceTree = "<group>"; };
 		E851493B1F45EF02002B14E0 /* blink_counter */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = blink_counter; sourceTree = BUILT_PRODUCTS_DIR; };
 		E851493E1F45EF02002B14E0 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		E8E9AD7D1F48483A002B1D05 /* libopencv_aruco.3.3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libopencv_aruco.3.3.0.dylib; path = "../../../../usr/local/Cellar/opencv3/HEAD-3b38eea_1/lib/libopencv_aruco.3.3.0.dylib"; sourceTree = "<group>"; };
@@ -437,6 +440,8 @@
 			isa = PBXGroup;
 			children = (
 				E851493E1F45EF02002B14E0 /* main.cpp */,
+				E83C4C301F5809A600A19433 /* eye_tracker.cpp */,
+				E83C4C311F5809A600A19433 /* eye_tracker.hpp */,
 			);
 			path = blink_counter;
 			sourceTree = "<group>";
@@ -632,6 +637,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E83C4C321F5809A600A19433 /* eye_tracker.cpp in Sources */,
 				E851493F1F45EF02002B14E0 /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -733,14 +739,11 @@
 			buildSettings = {
 				DEVELOPMENT_TEAM = KZ6FC78286;
 				HEADER_SEARCH_PATHS = /usr/local/opt/opencv3/include;
-				LIBRARY_SEARCH_PATHS = (
-					/usr/local/opt/opencv3/lib,
-					"/usr/local/Cellar/opencv3/HEAD-3b38eea_1/lib",
-				);
+				LIBRARY_SEARCH_PATHS = /usr/local/opt/opencv3/lib;
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/opencv3/HEAD-3b38eea_1/include/opencv",
-					"-I/usr/local/Cellar/opencv3/HEAD-3b38eea_1/include",
-					"-L/usr/local/Cellar/opencv3/HEAD-3b38eea_1/lib",
+					"-I/usr/local/Cellar/opencv/3.3.0_3/include/opencv",
+					"-I/usr/local/Cellar/opencv/3.3.0_3/include",
+					"-L/usr/local/Cellar/opencv/3.3.0_3/lib",
 					"-lopencv_stitching",
 					"-lopencv_superres",
 					"-lopencv_videostab",
@@ -767,10 +770,10 @@
 					"-lopencv_text",
 					"-lopencv_dnn",
 					"-lopencv_plot",
+					"-lopencv_ml",
 					"-lopencv_xfeatures2d",
 					"-lopencv_shape",
 					"-lopencv_video",
-					"-lopencv_ml",
 					"-lopencv_ximgproc",
 					"-lopencv_calib3d",
 					"-lopencv_features2d",
@@ -793,14 +796,11 @@
 			buildSettings = {
 				DEVELOPMENT_TEAM = KZ6FC78286;
 				HEADER_SEARCH_PATHS = /usr/local/opt/opencv3/include;
-				LIBRARY_SEARCH_PATHS = (
-					/usr/local/opt/opencv3/lib,
-					"/usr/local/Cellar/opencv3/HEAD-3b38eea_1/lib",
-				);
+				LIBRARY_SEARCH_PATHS = /usr/local/opt/opencv3/lib;
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/opencv3/HEAD-3b38eea_1/include/opencv",
-					"-I/usr/local/Cellar/opencv3/HEAD-3b38eea_1/include",
-					"-L/usr/local/Cellar/opencv3/HEAD-3b38eea_1/lib",
+					"-I/usr/local/Cellar/opencv/3.3.0_3/include/opencv",
+					"-I/usr/local/Cellar/opencv/3.3.0_3/include",
+					"-L/usr/local/Cellar/opencv/3.3.0_3/lib",
 					"-lopencv_stitching",
 					"-lopencv_superres",
 					"-lopencv_videostab",
@@ -827,10 +827,10 @@
 					"-lopencv_text",
 					"-lopencv_dnn",
 					"-lopencv_plot",
+					"-lopencv_ml",
 					"-lopencv_xfeatures2d",
 					"-lopencv_shape",
 					"-lopencv_video",
-					"-lopencv_ml",
 					"-lopencv_ximgproc",
 					"-lopencv_calib3d",
 					"-lopencv_features2d",
