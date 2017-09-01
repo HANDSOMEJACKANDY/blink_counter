@@ -23,7 +23,7 @@ EyeTracker::EyeTracker(){
     }
 }
 
-Rect EyeTracker::tracking(double inputScale){
+void EyeTracker::trackByScale(double inputScale){
     if(curFrame.empty()){
         originFrame.copyTo(curFrame);
         inputScale = rescale(curFrame, curFrame, inputScale);
@@ -56,7 +56,7 @@ Rect EyeTracker::tracking(double inputScale){
             tbCenter *= inputScale / scale;
             tbWidth *= inputScale / scale;
             tbHeight *= inputScale / scale;
-            trackingBox = getTrackingBox();
+            getTrackingBox();
             
             scale = inputScale;
         }
@@ -76,7 +76,7 @@ Rect EyeTracker::tracking(double inputScale){
                 opticalFlow(enlargedRect(trackingBox, 2.5));
                 if(point[1].size() != 0){
                     tbCenter += Point(filteredDisplacement());
-                    trackingBox = getTrackingBox();
+                    getTrackingBox();
                 }
             }
             else
@@ -89,8 +89,84 @@ Rect EyeTracker::tracking(double inputScale){
         
         originTrackingBox = Rect(trackingBox.tl() / scale, trackingBox.br() / scale);
     }
+}
+
+bool EyeTracker::tuneByDetection(double step){
+    float trackRegionScale = 1;
+    if(enlargedRect(originTrackingBox,trackRegionScale, false).empty())
+        return false;
     
-    return originTrackingBox;
+    namedWindow("tune");
+    namedWindow("rotated");
+    namedWindow("notrotated");
+    
+    Mat target = originFrame(enlargedRect(originTrackingBox, trackRegionScale, false));
+    Point2f displacement = enlargedRect(originTrackingBox, trackRegionScale, false).tl(); // displacement of tracking box
+    Point2f center = Point2f(target.size().width / 2, target.size().height / 2); // new center
+    
+    vector<Rect> eyes, tempEyes;
+    vector<Point2f> eyeCenters, tempEyeCenters;
+    Mat rotMat, rotImg;
+    double angle;
+    for(int i=-10; i<10; i++){
+        angle = tbAngle + i * step;
+        if(angle < -60 || angle > 60)
+            continue;
+        // computing parameters
+        rotMat = getRotationMatrix2D(center, angle, 1);
+        // do warping
+        warpAffine(target, rotImg, rotMat, target.size());
+        tempEyes = detectEyeAndFace(rotImg, false);
+        // rotate the center back
+        Point2f ptr, tempDis;
+        double tempLength, tempAngle, ptrAngle;
+        for(size_t i=0; i<tempEyes.size(); i++){
+            ptr = Point2f(tempEyes[i].x + tempEyes[i].width / 2, tempEyes[i].y + tempEyes[i].height / 2);
+            
+            circle(rotImg, ptr, 3, Scalar(255, 255, 0), 3);
+            imshow("rotated", rotImg);
+            
+            tempDis = ptr - center;
+            tempLength = sqrt(pow(tempDis.x, 2) + pow(tempDis.y, 2));
+            tempAngle = atan(tempDis.y / tempDis.x);
+            ptrAngle = tempAngle - angle;
+            ptr.x = tempLength * cos(ptrAngle);
+            ptr.y = tempLength * sin(ptrAngle);
+            ptr += center;
+            
+            circle(target, ptr, 3, Scalar(255, 255, 0), 3);
+            imshow("notrotated", target);
+            waitKey(0);
+            
+            tempEyeCenters.push_back(ptr);
+        }
+        eyes.insert(eyes.end(), tempEyes.begin(), tempEyes.end());
+        eyeCenters.insert(eyeCenters.end(), tempEyeCenters.begin(), tempEyeCenters.end());
+    }
+    
+    if(eyes.size() == 0)
+        return false;
+    
+    Point2f averageCenter = Point2f(0, 0);
+    float averageSide = 0;
+    // using average to tune the percise eye position
+    for(size_t i=0; i<eyes.size(); i++){
+        averageCenter += eyeCenters[i];
+        averageSide += (eyes[i].width + eyes[i].height) / 2;
+    }
+    averageCenter /= float(eyes.size());
+    
+    circle(target, averageCenter, 3, Scalar(255, 255, 255), 3);
+    imshow("tune", target);
+    waitKey(0);
+    
+    averageSide /= float(eyes.size());
+    averageCenter += displacement;
+    tbCenter = averageCenter / 2;
+//    tbWidth = averageSide / 2;
+//    tbHeight = tbWidth;
+    getTrackingBox();
+    return true;
 }
 
 double EyeTracker::rescale(Mat src, Mat &dst, double inputScale){
@@ -125,13 +201,13 @@ vector<Rect> EyeTracker::detectEyeAndFace(Mat src, bool isFace){
     if(isFace){
         vector<Rect> faces;
         
-        face_cascade.detectMultiScale( src, faces, 1.1, 2, 0, Size(30, 30));
+        face_cascade.detectMultiScale( src, faces, 1.1, 2, 0, Size(20, 20));
         
         for( size_t i = 0; i < faces.size(); i++)
         {
             Mat faceROI = src( faces[i] );
             
-            eyes_cascade.detectMultiScale( faceROI, eyes, 1.1, 2, 0, Size(30, 30));
+            eyes_cascade.detectMultiScale( faceROI, eyes, 1.1, 2, 0, Size(20, 20));
             
             for( size_t j = 0; j < eyes.size(); j++)
                 eyes[j] += faces[i].tl();
@@ -162,27 +238,34 @@ bool EyeTracker::findMostRightEye(vector<Rect> eyes, Rect &eye){
     }
 }
 
-Rect EyeTracker::getTrackingBox(){
-    return enlargedRect(Rect(Point(tbCenter.x - tbWidth / 2, tbCenter.y - tbHeight / 2), Point(tbCenter.x + tbWidth / 2, tbCenter.y + tbHeight / 2)), 1);
+void EyeTracker::getTrackingBox(){
+    trackingBox = enlargedRect(Rect(Point(tbCenter.x - tbWidth / 2, tbCenter.y - tbHeight / 2), Point(tbCenter.x + tbWidth / 2, tbCenter.y + tbHeight / 2)), 1);
+    originTrackingBox = Rect(trackingBox.tl() / scale, trackingBox.br() / scale);
 }
 
 void EyeTracker::drawTrackingBox(Mat &dst){
     if(dst.empty())
         originFrame.copyTo(dst);
     
+    getTrackingBox();
     rectangle(dst, originTrackingBox, Scalar(0, 0, 255), 3);
-    
 }
 
-Rect EyeTracker::enlargedRect(Rect src, float times){
+Rect EyeTracker::enlargedRect(Rect src, float times, bool isDefault){
     Point tl, br;
+    Size size;
+    if(isDefault)
+        size = curFrame.size();
+    else
+        size = originFrame.size();
+    
     tl.x = max(src.tl().x - src.width * (times - 1) / 2, 0);
-    tl.x = min(tl.x, curFrame.size().width);
+    tl.x = min(tl.x, size.width);
     tl.y = max(src.tl().y - src.height * (times - 1) / 2, 0);
-    tl.y = min(tl.y, curFrame.size().height);
-    br.x = min(src.br().x + src.width * (times - 1) / 2, curFrame.size().width);
+    tl.y = min(tl.y, size.height);
+    br.x = min(src.br().x + src.width * (times - 1) / 2, size.width);
     br.x = max(br.x, 0);
-    br.y = min(src.br().y + src.height * (times - 1) / 2, curFrame.size().height);
+    br.y = min(src.br().y + src.height * (times - 1) / 2, size.height);
     br.y = max(br.y, 0);
     return Rect(tl, br);
 }
@@ -211,6 +294,9 @@ void EyeTracker::opticalFlow(Rect src)
             initPoint.insert(initPoint.end(), features.begin(), features.end());
         }
     }
+    
+    if(point[0].size() == 0)
+        return;
     
     vector<Point2f> tempPoint[2];
     tempPoint[0].resize(point[0].size());

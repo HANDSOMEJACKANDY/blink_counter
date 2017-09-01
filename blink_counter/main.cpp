@@ -25,7 +25,7 @@ using namespace cv;
 
 int main(){
     VideoCapture cap;
-    Mat frame;
+    Mat frame, frame2;
     EyeTracker tracker;
     
     cap.open(0);
@@ -36,12 +36,18 @@ int main(){
     }
     
     namedWindow("curFrame");
+    namedWindow("frame2");
     namedWindow("camera");
-    Rect trackingBox;
+
     while(waitKey(1) != 27){
         cap >> frame;
         frame.copyTo(tracker.originFrame);
-        trackingBox = tracker.tracking(0.5);
+        frame.copyTo(frame2);
+        tracker.trackByScale(0.5);
+        tracker.drawTrackingBox(frame2);
+        imshow("frame2", frame2);
+        
+        tracker.tuneByDetection(5);
         tracker.drawTrackingBox(frame);
         tracker.drawOptFlow(frame);
         imshow("camera", frame);

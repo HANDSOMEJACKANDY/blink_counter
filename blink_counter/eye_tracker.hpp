@@ -33,7 +33,8 @@ public:
     EyeTracker();
     
 public:
-    Rect tracking(double inputScale);
+    void trackByScale(double inputScale);
+    bool tuneByDetection(double step);
     
 private:
     struct DisFilter{ //to filt the point that may be falsely matched
@@ -49,8 +50,8 @@ public:
     vector<Rect> detectEyeAndFace(Mat src, bool isFace = true);
     bool findMostRightEye(vector<Rect> eyes, Rect &eye);
     // for tracking box
-    Rect enlargedRect(Rect src, float times);
-    Rect getTrackingBox();
+    Rect enlargedRect(Rect src, float times, bool isDefault = true);
+    void getTrackingBox();
     void drawTrackingBox(Mat &dst);
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
@@ -78,6 +79,7 @@ public:
     Rect trackingBox = Rect(0,0,0,0), originTrackingBox = Rect(0,0,0,0);
     Point tbCenter = Point(0,0);
     int tbWidth = 0, tbHeight = 0;
+    double tbAngle = 0;
     // for optic flow:
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
     vector<Point2f> initPoint;    // 初始化跟踪点的位置
