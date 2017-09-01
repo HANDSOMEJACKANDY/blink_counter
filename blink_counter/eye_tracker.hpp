@@ -34,7 +34,8 @@ public:
     
 public:
     void trackByScale(double inputScale);
-    bool tuneByDetection(double step);
+    bool tuneByDetection(double step, double trackRegionScale = 1);
+    void checkIsTracking();
     
 private:
     struct DisFilter{ //to filt the point that may be falsely matched
@@ -53,6 +54,7 @@ public:
     Rect enlargedRect(Rect src, float times, bool isDefault = true);
     void getTrackingBox();
     void drawTrackingBox(Mat &dst);
+    void adaptiveBalancing(Point2f averageCenter);
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -80,6 +82,10 @@ public:
     Point tbCenter = Point(0,0);
     int tbWidth = 0, tbHeight = 0;
     double tbAngle = 0;
+    // for tune by detection
+    double tuningPercentage = 0.5;
+    int lostFrame = 0;
+    bool isLostFrame = false;
     // for optic flow:
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
     vector<Point2f> initPoint;    // 初始化跟踪点的位置
