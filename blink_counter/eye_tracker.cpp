@@ -52,10 +52,12 @@ Rect EyeTracker::tracking(double inputScale){
                 point[0][i] *= inputScale / scale;
                 point[1][i] *= inputScale / scale;
                 initPoint[i] *= inputScale / scale;
-                tbCenter *= inputScale / scale;
-                tbWidth *= inputScale / scale;
-                tbHeight *= inputScale / scale;
             }
+            tbCenter *= inputScale / scale;
+            tbWidth *= inputScale / scale;
+            tbHeight *= inputScale / scale;
+            trackingBox = getTrackingBox();
+            
             scale = inputScale;
         }
         
@@ -188,13 +190,26 @@ Rect EyeTracker::enlargedRect(Rect src, float times){
 void EyeTracker::opticalFlow(Rect src)
 {
     if (addNewPoints())
-    {
-        goodFeaturesToTrack(curFrame(src), features, maxCount - int(point[0].size()), qLevel, minDist);
+    {   // first extract features in trackingBox by centerFeaturePercentage
+        goodFeaturesToTrack(curFrame(trackingBox), features, (maxCount - int(point[0].size())) * centerFeaturePercentage, qLevel, minDist);
         for(size_t i=0; i<features.size(); i++){
-            features[i] += Point2f(src.tl());
+            features[i] += Point2f(trackingBox.tl());
         }
         point[0].insert(point[0].end(), features.begin(), features.end());
         initPoint.insert(initPoint.end(), features.begin(), features.end());
+        // then we extract features outside the trackingBox
+        if(centerFeaturePercentage < 1){
+            goodFeaturesToTrack(curFrame(src), features, (maxCount - int(point[0].size())), qLevel, minDist);
+            for(vector<Point2f>::iterator iter=features.begin(); iter != features.end();){
+                *iter += Point2f(src.tl());
+                if((*iter).inside(trackingBox))
+                    features.erase(iter);
+                else
+                    iter++;
+            }
+            point[0].insert(point[0].end(), features.begin(), features.end());
+            initPoint.insert(initPoint.end(), features.begin(), features.end());
+        }
     }
     
     vector<Point2f> tempPoint[2];
@@ -253,42 +268,52 @@ Point2f EyeTracker::filteredDisplacement(){
     vector<DisFilter>::iterator iter;
     sort(tempDis.begin(), tempDis.end(), compX);
     iter = tempDis.begin();
-    for(int i=0; i<size*percentage; i++){
+    for(int i=0; i<size*filterPercentage; i++){
         (iter++)->flag = true;
     }
     iter = tempDis.end();
-    for(int i=0; i<size*percentage; i++){
+    for(int i=0; i<size*filterPercentage; i++){
         (--iter)->flag = true;
     }
     
     sort(tempDis.begin(), tempDis.end(), compY);
     iter = tempDis.begin();
-    for(int i=0; i<size*percentage; i++){
+    for(int i=0; i<size*filterPercentage; i++){
         (iter++)->flag = true;
     }
     iter = tempDis.end();
-    for(int i=0; i<size*percentage; i++){
+    for(int i=0; i<size*filterPercentage; i++){
         (--iter)->flag = true;
     }
     
 //    sort(tempDis.begin(), tempDis.end(), compYX);
 //    iter = tempDis.begin();
-//    for(int i=0; i<size*percentage; i++){
+//    for(int i=0; i<size*filterPercentage; i++){
 //        (iter++)->flag = true;
 //    }
 //    iter = tempDis.end();
-//    for(int i=0; i<size*percentage; i++){
+//    for(int i=0; i<size*filterPercentage; i++){
 //        (--iter)->flag = true;
 //    }
     
     for(iter=tempDis.begin(); iter != tempDis.end();){
         if(iter->flag == true){
-            point[0].erase(point[0].begin() + iter->seq);
-            point[1].erase(point[1].begin() + iter->seq);
+            *(point[0].begin() + iter->seq) = Point2f(-1, -1);
+            *(point[1].begin() + iter->seq) = Point2f(-1, -1);
             tempDis.erase(iter);
         }
         else
             iter++;
+    }
+    
+    for(size_t i =0; i<point[0].size();){
+        if(point[0][i] == Point2f(-1, -1)){
+            point[0].erase(point[0].begin() + i);
+            point[1].erase(point[1].begin() + i);
+            initPoint.erase(initPoint.begin() + i);
+        }
+        else
+            i++;
     }
     
     for(size_t i=0; i<tempDis.size(); i++){

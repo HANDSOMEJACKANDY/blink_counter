@@ -37,13 +37,8 @@ int main(){
     
     namedWindow("curFrame");
     namedWindow("camera");
-    double i=0;
     Rect trackingBox;
     while(waitKey(1) != 27){
-        i++;
-        double scale = 1;
-        if(int(i) % 2 == 1)
-            scale = 0.5;
         cap >> frame;
         frame.copyTo(tracker.originFrame);
         trackingBox = tracker.tracking(0.5);

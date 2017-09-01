@@ -82,13 +82,14 @@ public:
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
     vector<Point2f> initPoint;    // 初始化跟踪点的位置
     vector<Point2f> features; // 检测的特征
-    int maxCount = 100, minCount = 80;         // 检测的最大特征数
+    int maxCount = 100, minCount = 50;         // 检测的最大特征数
+    float centerFeaturePercentage = 0.666;
     double qLevel = 0.01;   // 特征检测的等级
     double minDist = 10.0;  // 两特征点之间的最小距离
     vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
     vector<float> err;
     // filtering displacement
-    float percentage = 1/5; //seems perfect with 1/5
+    float filterPercentage = 0.15; //seems perfect with 1/5
     // for time counting
     double averageTime = 0, sumTime = 0;
     long timeCount = 0;
