@@ -41,8 +41,10 @@ int main(){
     while(waitKey(1) != 27){
         cap >> frame;
         frame.copyTo(tracker.originFrame);
+        tracker.setTimeStart();
         tracker.trackByScale(0.5);
         tracker.tuneByDetection(5);
+        tracker.setTimeEnd();
         tracker.drawTrackingBox(frame);
         tracker.drawOptFlow(frame);
         imshow("camera", frame);

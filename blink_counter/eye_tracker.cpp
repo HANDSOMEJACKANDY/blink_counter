@@ -34,8 +34,8 @@ void EyeTracker::trackByScale(double inputScale){
     else{
         Rect eye;
 
-        double start = getTickCount(); //to count the period the process takes
-        
+        // double start = getTickCount(); //to count the period the process takes
+
         //swap prev and cur
         curFrame.copyTo(prevFrame);
         swap(point[1], point[0]);
@@ -60,7 +60,7 @@ void EyeTracker::trackByScale(double inputScale){
             
             scale = inputScale;
         }
-        
+        // check if tracking is failed
         checkIsTracking();
 
         if(!is_tracking){
@@ -73,8 +73,12 @@ void EyeTracker::trackByScale(double inputScale){
                 is_tracking = true;
             }
             else{
-                tbWidth = 0;
-                tbHeight = 0;
+                tbWidth = -1;
+                tbHeight = -1;
+                tbCenter = Point2f(-1, -1);
+                point[0].resize(0);
+                point[1].resize(0);
+                initPoint.resize(0);
             }
         }
         else{
@@ -89,11 +93,8 @@ void EyeTracker::trackByScale(double inputScale){
                 is_tracking = false;
         }
         
-        // cout << "instant time: " << ((getTickCount() - start) / getTickFrequency()) * 1000 << endl;
-        sumTime += ((getTickCount() - start) / getTickFrequency()) * 1000; //output the time the process takes
-        timeCount++;
-        
-        originTrackingBox = Rect(trackingBox.tl() / scale, trackingBox.br() / scale);
+        //cout << "instant time: " << ((getTickCount() - start) / getTickFrequency()) * 1000 << endl;
+        //sumTime += ((getTickCount() - start) / getTickFrequency()) * 1000; //output the time the process takes
     }
 }
 
@@ -112,7 +113,7 @@ bool EyeTracker::tuneByDetection(double step, double trackRegionScale){
     vector<Rect> eyes, tempEyes;
     vector<Point2f> eyeCenters, tempEyeCenters;
     Mat rotMat, rotImg;
-    double angle;
+    double angle, angleSum(0), angleCount(0);
     for(int i=-10; i<10; i++){
         angle = tbAngle + i * step;
         if(angle < -60 || angle > 60)
@@ -120,90 +121,145 @@ bool EyeTracker::tuneByDetection(double step, double trackRegionScale){
         // computing parameters
         rotMat = getRotationMatrix2D(center, angle, 1);
         // do warping
-        warpAffine(target, rotImg, rotMat, target.size());
+        warpAffine(target, rotImg, rotMat, target.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
         tempEyes = detectEyeAndFace(rotImg, false);
-        // rotate the center back
-        Point2f ptr, tempDis;
-        double tempLength, tempAngle, ptrAngle;
-        // clean previous data
-        tempEyeCenters.resize(0);
-        for(size_t i=0; i<tempEyes.size(); i++){
-            ptr = Point2f(tempEyes[i].tl().x + tempEyes[i].width / 2, tempEyes[i].tl().y + tempEyes[i].height / 2);
-            
-            circle(rotImg, ptr, 3, Scalar(255, 255, 0), 3);
-            imshow("rotated", rotImg);
-            
-            tempDis = ptr - center;
-            tempLength = sqrt(tempDis.x * tempDis.x + tempDis.y * tempDis.y);
-            tempAngle = atan(tempDis.y / tempDis.x);
-            ptrAngle = tempAngle - angle;
-            ptr.x = tempLength * cos(ptrAngle);
-            ptr.y = tempLength * sin(ptrAngle);
-            ptr += center;
-            
-            circle(target, ptr, 3, Scalar(255, 255, 0), 3);
-            imshow("notrotated", target);
-//            waitKey(0);
-            
-            // unknow error: constantly Nan
-            tempEyeCenters.push_back(ptr);
+
+        if(tempEyes.size() > 0){// if find an eye
+            // for tbAngle
+            angleSum += angle;
+            angleCount++;
+            // clean previous data
+            tempEyeCenters.resize(0);
+            // rotate the center back
+            Point2f ptr, tempDis;
+            double tempLength, tempAngle, ptrAngle;
+            for(size_t j=0; j<tempEyes.size(); j++){
+                ptr = Point2f(tempEyes[j].tl().x + tempEyes[j].width / 2, tempEyes[j].tl().y + tempEyes[j].height / 2);
+                
+                circle(rotImg, center, 1, Scalar(0, 255, 0), 3);
+                line(rotImg, Point(target.cols, center.y), Point(0, center.y), Scalar(0, 255, 0));
+                line(rotImg, Point(center.x, target.rows), Point(center.x, 0), Scalar(0, 255, 0));
+                circle(target, center, 1, Scalar(0, 255, 0), 3);
+                line(target, Point(target.cols, center.y), Point(0, center.y), Scalar(0, 255, 0));
+                line(target, Point(center.x, target.rows), Point(center.x, 0), Scalar(0, 255, 0));
+                circle(rotImg, ptr, 1, Scalar(255, 255, 0), 3);
+                line(rotImg, ptr, center, Scalar(0, 255, 0));
+                imshow("rotated", rotImg);
+                
+                tempDis = ptr - center;
+                tempLength = sqrt(tempDis.x * tempDis.x + tempDis.y * tempDis.y);
+                
+                if(tempDis.x >= 0){ // shit about math!!!!!
+                    tempDis.x += 0.1;
+                    tempAngle = atan(tempDis.y / tempDis.x);
+                }
+                else{
+                    tempDis.x -= 0.1;
+                    tempAngle = atan(tempDis.y / tempDis.x) + CV_PI;
+                }
+
+                ptrAngle = tempAngle + angle * CV_PI / 180;
+                ptr.x = tempLength * cos(ptrAngle);
+                ptr.y = tempLength * sin(ptrAngle);
+                ptr += center;
+                
+                circle(target, ptr, 1, Scalar(255, 255, 0), 3);
+                line(target, ptr, center, Scalar(0, 255, 0));
+                imshow("notrotated", target);
+                
+                ptr += displacement;
+                tempEyeCenters.push_back(ptr);
+            }
+            eyes.insert(eyes.end(), tempEyes.begin(), tempEyes.end());
+            eyeCenters.insert(eyeCenters.end(), tempEyeCenters.begin(), tempEyeCenters.end());
         }
-        eyes.insert(eyes.end(), tempEyes.begin(), tempEyes.end());
-        eyeCenters.insert(eyeCenters.end(), tempEyeCenters.begin(), tempEyeCenters.end());
     }
     
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
             isLostFrame = true;
-            lostFrame++;
-            tuneByDetection(2.5, 2);
+            lostFrame += 0.05;
+            tuneByDetection(5, 2.5);
             return false;
         }
         else{
+            isLostFrame = true;
+            lostFrame++;
             return false;
         }
     }
-    else if(trackRegionScale == 1){
-        isLostFrame = false;
-        lostFrame = 0;
+    else{
+        tbAngle = angleSum / angleCount;
+        if(trackRegionScale == 1){
+            isLostFrame = false;
+            lostFrame = 0;
+        }
     }
     
     Point2f averageCenter = Point2f(0, 0);
+    double pointCount(0), averageSide(0);
     // using average to tune the percise eye position
     for(size_t i=0; i<eyes.size(); i++){
-        averageCenter += eyeCenters[i];
+        if(sqrt(pow(eyeCenters[i].x - 2 * tbCenter.x, 2) + pow(eyeCenters[i].y - 2 * tbCenter.y, 2)) <= tbWidth * 2){
+            averageSide += eyes[i].width;
+            averageCenter += eyeCenters[i];
+            pointCount++;
+        }
     }
-    averageCenter /= float(eyes.size());
-    
-    circle(target, averageCenter, 3, Scalar(255, 255, 255), 3);
-    imshow("tune", target);
-//    waitKey(0);
+    if(pointCount > 0){
+        averageCenter /= pointCount * 2;
+        averageSide /= pointCount * 2;
+        
+        circle(target, averageCenter, 6, Scalar(0, 0, 255), 6);
+        imshow("tune", target);
+//        waitKey(0);
 
-    averageCenter += displacement;
-    averageCenter /= 2;
-    adaptiveBalancing(averageCenter);
-    getTrackingBox();
-    if(trackingBox.size() == curFrame.size()){
-        int a=0;
-        a++;
+        tbCenter = averageCenter;
+        tbWidth = (tbWidth / rectForTrackPercentage * (1 - tuningPercentage) + averageSide * tuningPercentage) * rectForTrackPercentage;
+        tbHeight = tbWidth;
+//        kMeansTuning(eyeCenters);
+        getTrackingBox();
     }
     return true;
 }
 
 void EyeTracker::checkIsTracking(){
-    if(lostFrame > 20)
+    if(lostFrame > maxLostFrame)
         is_tracking = false;
 }
 
-void EyeTracker::adaptiveBalancing(Point2f averageCenter){
-    Point2f dis = Point2f(tbCenter) - averageCenter;
-    double length = sqrt(pow(dis.x, 2) + pow(dis.y, 2));
-    if(length < tbWidth / 2)
-        return;
-    else if(length > tbWidth && length < 1.5 * tbWidth)
-        tbCenter = Point(averageCenter) * tuningPercentage + tbCenter * (1 - tuningPercentage);
-    else
-        tbCenter = Point(averageCenter);
+void EyeTracker::kMeansTuning(vector<Point2f> &eyeCenters){ // way too slow method…… though has significant effect
+    namedWindow("kmeans");
+    // doing clustering of detected eye centers
+    Mat points(int(eyeCenters.size()), 1, CV_32FC2), labels;
+    for(size_t r=0; r<eyeCenters.size(); r++){
+        points.row(int(r)) = Scalar(eyeCenters[r].x, eyeCenters[r].y);
+        circle(originFrame, eyeCenters[r], 3, Scalar(255, 255, 255), 3);
+    }
+    int clusterCount = min(int(eyeCenters.size()), 3);
+    Mat centers(clusterCount, 1, points.type());
+    kmeans(points, clusterCount, labels,
+           TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 1, 5.0),
+           1, KMEANS_PP_CENTERS, centers);
+    eyeCenters.resize(clusterCount);
+    for(size_t i=0; i<eyeCenters.size(); i++){
+        eyeCenters[i] = centers.at<Point2f>(int(i));
+        circle(originFrame, eyeCenters[i], 3, Scalar(0, 255, 0), 3);
+    }
+    imshow("kmeans", originFrame);
+    // waitKey(0);
+    
+    // looking for the closest cluster
+    double minDis(100), seq(0), temp;
+    for(int i=0; i<clusterCount; i++){
+        temp = sqrt(pow(eyeCenters[i].x - 2 * tbCenter.x, 2) + pow(eyeCenters[i].y - 2 * tbCenter.y, 2));
+        if(temp < minDis){
+            minDis = temp;
+            seq = i;
+        }
+    }
+    
+    tbCenter = eyeCenters[seq] / 2;
 }
 
 double EyeTracker::rescale(Mat src, Mat &dst, double inputScale){
@@ -461,7 +517,18 @@ bool EyeTracker::compY(const DisFilter a, const DisFilter b){
 bool EyeTracker::compYX(const DisFilter a, const DisFilter b){
     return a.dis.y / a.dis.x < b.dis.y / b.dis.x;
 }
+// efficiency related:
+void EyeTracker::setTimeStart(){
+    start = clock();
+}
+
+void EyeTracker::setTimeEnd(){
+//    sumTime += clock() - start;
+//    timeCount++;
+    sumTime = clock() - start;
+}
 
 double EyeTracker::getAverageTime(){
-    return sumTime / timeCount;
+//    return double(sumTime) / (timeCount * CLOCKS_PER_SEC) * 1000;
+    return sumTime / 1000;
 }

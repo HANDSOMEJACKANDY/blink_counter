@@ -24,6 +24,7 @@
 #include <opencv2/tracking/tracker.hpp>
 #include <opencv2/core/utility.hpp>
 #include <opencv2/tracking.hpp>
+#include <time.h>
 
 using namespace std;
 using namespace cv;
@@ -54,7 +55,7 @@ public:
     Rect enlargedRect(Rect src, float times, bool isDefault = true);
     void getTrackingBox();
     void drawTrackingBox(Mat &dst);
-    void adaptiveBalancing(Point2f averageCenter);
+    void kMeansTuning(vector<Point2f> &eyeCenters);
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -66,6 +67,8 @@ public:
     static bool compYX(const DisFilter a, const DisFilter b);
     
     // for efficiency evaluation
+    void setTimeStart();
+    void setTimeEnd();
     double getAverageTime();
     
 public:
@@ -82,9 +85,11 @@ public:
     Point tbCenter = Point(0,0);
     int tbWidth = 0, tbHeight = 0;
     double tbAngle = 0;
+    // for checkistracking
+    int maxLostFrame = 10;
     // for tune by detection
-    double tuningPercentage = 0.5;
-    int lostFrame = 0;
+    double tuningPercentage = 0.25, rectForTrackPercentage = 1.75;
+    float lostFrame = 0;
     bool isLostFrame = false;
     // for optic flow:
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
@@ -99,6 +104,6 @@ public:
     // filtering displacement
     float filterPercentage = 0.15; //seems perfect with 1/5
     // for time counting
-    double averageTime = 0, sumTime = 0;
-    long timeCount = 0;
+    clock_t start;
+    double sumTime = 0, timeCount = 0;
 };
