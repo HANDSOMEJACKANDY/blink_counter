@@ -35,7 +35,7 @@ public:
     
 public:
     void trackByScale(double inputScale);
-    bool tuneByDetection(double step, double trackRegionScale = 1);
+    bool tuneByDetection(double step, double inputScale, double trackRegionScale = 1);
     void checkIsTracking();
     
 private:
@@ -49,13 +49,15 @@ public:
     // for image processing
     double rescale(Mat src, Mat &dst, double inputScale);
     // for eye detection
-    vector<Rect> detectEyeAndFace(Mat src, bool isFace = true);
+    vector<Rect> detectEyeAndFace(Mat src, Size minEye, bool isFace = true);
+    vector<Rect> detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace = false);
     bool findMostRightEye(vector<Rect> eyes, Rect &eye);
     // for tracking box
-    Rect enlargedRect(Rect src, float times, bool isDefault = true);
+    Rect enlargedRect(Rect src, float times, double inputScale);
     void getTrackingBox();
     void drawTrackingBox(Mat &dst);
-    void kMeansTuning(vector<Point2f> &eyeCenters);
+    Point2f rotatePoint(Point2f center, double angle, Point2f ptr);
+    void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -77,8 +79,8 @@ public:
     String eyes_cascade_name = inputDir + "haarcascade_lefteye_2splits.xml";
     CascadeClassifier face_cascade;
     CascadeClassifier eyes_cascade;
-    Mat curFrame, prevFrame, colorFrame, originFrame;
-    double scale = 2;
+    Mat originFrame;
+    double scale = 0.5;
     // for tracking box:
     bool is_tracking = false;
     Rect trackingBox = Rect(0,0,0,0), originTrackingBox = Rect(0,0,0,0);
@@ -88,10 +90,11 @@ public:
     // for checkistracking
     int maxLostFrame = 10;
     // for tune by detection
-    double tuningPercentage = 0.25, rectForTrackPercentage = 1.75;
+    double tuningPercentage = 0.25, rectForTrackPercentage = 1.5;
     float lostFrame = 0;
     bool isLostFrame = false;
     // for optic flow:
+    Mat curFrame, prevFrame, colorFrame;
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
     vector<Point2f> initPoint;    // 初始化跟踪点的位置
     vector<Point2f> features; // 检测的特征
