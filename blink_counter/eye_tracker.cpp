@@ -129,8 +129,9 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     Point2f center = Point2f(target.size().width / 2, target.size().height / 2); // new center
     
     vector<Rect> eyes;
+    vector<DisFilter> dis;
+    DisFilter tempDis;
     Rect tempEyes;
-    vector<Point2f> eyeCenters, tempEyeCenters;
     Mat rotMat, rotImg;
     double angle, angleSum(0), angleCount(0);
     for(int i=-10; i<10; i++){
@@ -143,8 +144,6 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
             // for tbAngle
             angleSum += angle;
             angleCount++;
-            // clean previous data
-            tempEyeCenters.resize(0);
             // record eye centers
             Point2f ptr;
             ptr = Point2f(tempEyes.tl().x + tempEyes.width / 2, tempEyes.tl().y + tempEyes.height / 2);
@@ -155,15 +154,19 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
             ptr += displacement;
             ptr *= scale / inputScale;
             
+            tempDis.dis = ptr - Point2f(tbCenter);
+            tempDis.seq = angleCount - 1;
+            tempDis.flag = false;
+            
+            dis.push_back(tempDis);
             eyes.push_back(tempEyes);
-            eyeCenters.push_back(ptr);
         }
     }
     
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
             isLostFrame = true;
-            lostFrame += 0.5;
+            lostFrame += 0.05;
             tuneByDetection(5, inputScale, 2.5);
             return false;
         }
@@ -181,26 +184,34 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         }
     }
     
-    Point2f averageCenter = Point2f(0, 0);
-    double pointCount(0), averageSide(0);
+    double pointCount(0);
+    // filt away the most far away centers:
+    sort(dis.begin(), dis.end(), compDis);
+    for(size_t i=0; i<dis.size() * centerFilterPercentage; i++){
+        eyes[dis[int(i)].seq] = Rect(0, 0, 0, 0);
+        dis[i].dis = Point2f(0, 0);
+    }
     // using average to tune the percise eye position
+    Point2f averageCenter = Point2f(0, 0);
+    double averageSide(0);
     for(size_t i=0; i<eyes.size(); i++){
-        if(sqrt(pow(eyeCenters[i].x - tbCenter.x, 2) + pow(eyeCenters[i].y - tbCenter.y, 2)) <= tbWidth * trackRegionScale / 2){
+        if(eyes[i].width != 0){
             averageSide += eyes[i].width * scale / inputScale;
-            averageCenter += eyeCenters[i];
+            averageCenter += dis[i].dis;
             pointCount++;
         }
     }
     if(pointCount > 0){
+
         averageCenter /= pointCount;
         averageSide /= pointCount;
         
-        circle(target, averageCenter / scale * inputScale - displacement, 6, Scalar(0, 0, 255), 6);
+        circle(target, (Point2f(tbCenter) + averageCenter) / scale * inputScale - displacement, 6, Scalar(0, 0, 255), 6);
         imshow("tune", target);
 
         // updating tracking box parameter
-        tbCenter = averageCenter;
-        tbWidth = (tbWidth / rectForTrackPercentage * (1 - tuningPercentage) + averageSide * tuningPercentage) * rectForTrackPercentage;
+        tbCenter += Point(averageCenter) * tuningPercentageForCenter;
+        tbWidth = (tbWidth / rectForTrackPercentage * (1 - tuningPercentageForSide) + averageSide * tuningPercentageForSide) * rectForTrackPercentage;
         tbHeight = tbWidth;
 
         getTrackingBox();
@@ -215,6 +226,10 @@ void EyeTracker::checkIsTracking(){
     if(lostFrame > maxLostFrame){
         is_tracking = false;
     }
+}
+
+bool EyeTracker::compDis(const DisFilter a, const DisFilter b){
+    return pow(a.dis.x, 2) + pow(a.dis.y, 2) > pow(b.dis.x, 2) + pow(b.dis.y, 2);
 }
 
 void EyeTracker::kMeansTuning(vector<Point2f> &eyeCenters, double inputScale){ // way too slow method…… though has significant effect

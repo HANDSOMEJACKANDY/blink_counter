@@ -57,6 +57,7 @@ public:
     void getTrackingBox();
     void drawTrackingBox(Mat &dst);
     Point2f rotatePoint(Point2f center, double angle, Point2f ptr);
+    static bool compDis(const DisFilter a, const DisFilter b);
     void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
@@ -90,7 +91,8 @@ public:
     // for checkistracking
     int maxLostFrame = 10;
     // for tune by detection
-    double tuningPercentage = 0.25, rectForTrackPercentage = 1.5;
+    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.9, rectForTrackPercentage = 1.25;
+    double centerFilterPercentage = 0.20;
     float lostFrame = 0;
     bool isLostFrame = false;
     // for optic flow:
