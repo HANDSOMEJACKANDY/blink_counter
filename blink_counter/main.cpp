@@ -42,7 +42,7 @@ int main(){
         cap >> frame;
         frame.copyTo(tracker.originFrame);
         tracker.setTimeStart();
-        tracker.trackByScale(0.5);
+        tracker.trackByOptFlow(0.5);
         tracker.tuneByDetection(5, 0.25);
         tracker.setTimeEnd();
         tracker.drawTrackingBox(frame);

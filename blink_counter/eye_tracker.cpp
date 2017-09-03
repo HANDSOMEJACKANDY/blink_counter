@@ -23,7 +23,7 @@ EyeTracker::EyeTracker(){
     }
 }
 
-void EyeTracker::trackByScale(double inputScale){
+void EyeTracker::trackByOptFlow(double inputScale){
     if(curFrame.empty()){
         originFrame.copyTo(curFrame);
         inputScale = rescale(curFrame, curFrame, inputScale);
@@ -73,8 +73,8 @@ void EyeTracker::trackByScale(double inputScale){
                 // detect eys in rotated image
                 tempEyes = detectEyeAtAngle(curFrame, angle, Size(30 * inputScale, 30 * inputScale));
                 if(tempEyes.size() > 0){
-                    break;
                     tbAngle = angle;
+                    break;
                 }
             }
             if(findMostRightEye(tempEyes, eye)){
@@ -84,8 +84,11 @@ void EyeTracker::trackByScale(double inputScale){
                 tbHeight = trackingBox.height;
                 tbCenter = trackingBox.tl() + Point(tbWidth / 2, tbHeight / 2);
                 is_tracking = true;
+                lostFrame = 0;
+                isLostFrame = false;
             }
             else{
+                tbAngle = 0;
                 tbWidth = -1;
                 tbHeight = -1;
                 tbCenter = Point2f(-1, -1);
@@ -125,7 +128,8 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     Point2f displacement = enlargedRect(scaledTrackingBox, trackRegionScale, inputScale).tl(); // displacement of tracking box
     Point2f center = Point2f(target.size().width / 2, target.size().height / 2); // new center
     
-    vector<Rect> eyes, tempEyes;
+    vector<Rect> eyes;
+    Rect tempEyes;
     vector<Point2f> eyeCenters, tempEyeCenters;
     Mat rotMat, rotImg;
     double angle, angleSum(0), angleCount(0);
@@ -134,9 +138,8 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         if(angle < -90 || angle > 90)
             continue;
         // detect eys in rotated image
-        tempEyes = detectEyeAtAngle(target, angle, Size(30 * inputScale, 30 * inputScale));
-        
-        if(tempEyes.size() > 0){// if find an eye
+        findMostRightEye(detectEyeAtAngle(target, angle, Size(30 * inputScale, 30 * inputScale)), tempEyes);
+        if(!tempEyes.empty()){// if find an eye
             // for tbAngle
             angleSum += angle;
             angleCount++;
@@ -144,31 +147,29 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
             tempEyeCenters.resize(0);
             // record eye centers
             Point2f ptr;
-            for(size_t j=0; j<tempEyes.size(); j++){
-                ptr = Point2f(tempEyes[j].tl().x + tempEyes[j].width / 2, tempEyes[j].tl().y + tempEyes[j].height / 2);
-                
-                circle(target, ptr, 1, Scalar(255, 255, 0), 3);
-                line(target, ptr, center, Scalar(0, 255, 0));
+            ptr = Point2f(tempEyes.tl().x + tempEyes.width / 2, tempEyes.tl().y + tempEyes.height / 2);
+            
+            circle(target, ptr, 1, Scalar(255, 255, 0), 3);
+            line(target, ptr, center, Scalar(0, 255, 0));
 
-                ptr += displacement;
-                ptr *= scale / inputScale;
-                tempEyeCenters.push_back(ptr);
-            }
-            eyes.insert(eyes.end(), tempEyes.begin(), tempEyes.end());
-            eyeCenters.insert(eyeCenters.end(), tempEyeCenters.begin(), tempEyeCenters.end());
+            ptr += displacement;
+            ptr *= scale / inputScale;
+            
+            eyes.push_back(tempEyes);
+            eyeCenters.push_back(ptr);
         }
     }
     
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
             isLostFrame = true;
-            lostFrame += 0.05;
+            lostFrame += 0.5;
             tuneByDetection(5, inputScale, 2.5);
             return false;
         }
         else{
             isLostFrame = true;
-            lostFrame++;
+            lostFrame += 1;
             return false;
         }
     }
@@ -211,8 +212,9 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
 }
 
 void EyeTracker::checkIsTracking(){
-    if(lostFrame > maxLostFrame)
+    if(lostFrame > maxLostFrame){
         is_tracking = false;
+    }
 }
 
 void EyeTracker::kMeansTuning(vector<Point2f> &eyeCenters, double inputScale){ // way too slow method…… though has significant effect
@@ -321,8 +323,12 @@ bool EyeTracker::findMostRightEye(vector<Rect> eyes, Rect &eye){
 vector<Rect> EyeTracker::detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace){
     Mat rotImg;
     Point2f center = Point2f(src.size().width / 2, src.size().height / 2), eyeCenter, tl, br; // new center
-    Mat rotMat = getRotationMatrix2D(center, angle, 1); // get rotation matrix
-    warpAffine(src, rotImg, rotMat, src.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));    // rotate the image
+    if(angle != 0){
+        Mat rotMat = getRotationMatrix2D(center, angle, 1); // get rotation matrix
+        warpAffine(src, rotImg, rotMat, src.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));    // rotate the image
+    }
+    else
+        src.copyTo(rotImg);
     vector<Rect> tempEyes = detectEyeAndFace(rotImg, minEye, isFace); // detect eyes
     
     for(size_t i=0; i<tempEyes.size(); i++){
@@ -335,25 +341,27 @@ vector<Rect> EyeTracker::detectEyeAtAngle(Mat src, double angle, Size minEye, bo
 }
 
 Point2f EyeTracker::rotatePoint(Point2f center, double angle, Point2f ptr){
-    Point2f tempDis;
-    double tempLength, tempAngle, ptrAngle;
-    
-    tempDis = ptr - center;
-    tempLength = sqrt(tempDis.x * tempDis.x + tempDis.y * tempDis.y);
-    
-    if(tempDis.x >= 0){ // shit about math!!!!!
-        tempDis.x += 0.1;
-        tempAngle = atan(tempDis.y / tempDis.x);
+    if(angle != 0){
+        Point2f tempDis;
+        double tempLength, tempAngle, ptrAngle;
+        
+        tempDis = ptr - center;
+        tempLength = sqrt(tempDis.x * tempDis.x + tempDis.y * tempDis.y);
+        
+        if(tempDis.x >= 0){ // shit about math!!!!!
+            tempDis.x += 0.1;
+            tempAngle = atan(tempDis.y / tempDis.x);
+        }
+        else{
+            tempDis.x -= 0.1;
+            tempAngle = atan(tempDis.y / tempDis.x) + CV_PI;
+        }
+        
+        ptrAngle = tempAngle + angle * CV_PI / 180;
+        ptr.x = tempLength * cos(ptrAngle);
+        ptr.y = tempLength * sin(ptrAngle);
+        ptr += center;
     }
-    else{
-        tempDis.x -= 0.1;
-        tempAngle = atan(tempDis.y / tempDis.x) + CV_PI;
-    }
-    
-    ptrAngle = tempAngle + angle * CV_PI / 180;
-    ptr.x = tempLength * cos(ptrAngle);
-    ptr.y = tempLength * sin(ptrAngle);
-    ptr += center;
     
     return ptr;
 }

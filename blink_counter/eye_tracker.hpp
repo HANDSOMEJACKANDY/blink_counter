@@ -34,7 +34,7 @@ public:
     EyeTracker();
     
 public:
-    void trackByScale(double inputScale);
+    void trackByOptFlow(double inputScale);
     bool tuneByDetection(double step, double inputScale, double trackRegionScale = 1);
     void checkIsTracking();
     
