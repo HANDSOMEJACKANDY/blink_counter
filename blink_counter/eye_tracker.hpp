@@ -51,14 +51,17 @@ public:
     // for eye detection
     vector<Rect> detectEyeAndFace(Mat src, Size minEye, bool isFace = true);
     vector<Rect> detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace = false);
-    bool findMostRightEye(vector<Rect> eyes, Rect &eye);
+    bool findMostRightEyes(vector<Rect> eyes, vector<Rect> &rigthEye);
     // for tracking box
     Rect enlargedRect(Rect src, float times, double inputScale);
     void getTrackingBox();
     void drawTrackingBox(Mat &dst);
+    // for tuning
     Point2f rotatePoint(Point2f center, double angle, Point2f ptr);
     static bool compDis(const DisFilter a, const DisFilter b);
     void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
+    // for blink detection
+    bool getEyeRegion();
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -67,8 +70,6 @@ public:
     Point2f filteredDisplacement();
     static bool compX(const DisFilter a, const DisFilter b);
     static bool compY(const DisFilter a, const DisFilter b);
-    static bool compYX(const DisFilter a, const DisFilter b);
-    
     // for efficiency evaluation
     void setTimeStart();
     void setTimeEnd();
@@ -95,6 +96,8 @@ public:
     double centerFilterPercentage = 0.20;
     float lostFrame = 0;
     bool isLostFrame = false;
+    // for blink detector:
+    Mat eye;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置

@@ -32,7 +32,7 @@ void EyeTracker::trackByOptFlow(double inputScale){
         scale = inputScale;
     }
     else{
-        Rect eye;
+        vector<Rect> eyes;
 
         // double start = getTickCount(); //to count the period the process takes
 
@@ -77,21 +77,24 @@ void EyeTracker::trackByOptFlow(double inputScale){
                     break;
                 }
             }
-            if(findMostRightEye(tempEyes, eye)){
-                trackingBox = eye;
+            if(findMostRightEyes(tempEyes, eyes)){
+                trackingBox = eyes[0];
+                cout << eyes[0] << endl;
                 //recording the info of tracking box
                 tbWidth = trackingBox.width;
                 tbHeight = trackingBox.height;
                 tbCenter = trackingBox.tl() + Point(tbWidth / 2, tbHeight / 2);
+                getTrackingBox();
                 is_tracking = true;
                 lostFrame = 0;
                 isLostFrame = false;
             }
             else{
                 tbAngle = 0;
-                tbWidth = -1;
-                tbHeight = -1;
-                tbCenter = Point2f(-1, -1);
+                tbWidth = 0;
+                tbHeight = 0;
+                tbCenter = Point2f(0, 0);
+                getTrackingBox();
                 point[0].resize(0);
                 point[1].resize(0);
                 initPoint.resize(0);
@@ -128,46 +131,58 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     Point2f displacement = enlargedRect(scaledTrackingBox, trackRegionScale, inputScale).tl(); // displacement of tracking box
     Point2f center = Point2f(target.size().width / 2, target.size().height / 2); // new center
     
-    vector<Rect> eyes;
+    vector<Rect> eyes, tempEyes;
     vector<DisFilter> dis;
     DisFilter tempDis;
-    Rect tempEyes;
     Mat rotMat, rotImg;
     double angle, angleSum(0), angleCount(0);
-    for(int i=-10; i<10; i++){
-        angle = tbAngle + i * step;
-        if(angle < -90 || angle > 90)
+    bool stopFlag[2]{false, false}, isFoundEye[2]{false, false};
+    int sigFlag[2]{0, 0};
+    for(int i=0; i<20; i++){
+        if(!stopFlag[i%2]){ // check if cannot find eyes no more
+            angle = tbAngle + int(i / 2) * pow(-1, i % 2) * 10;
+            if(angle < -90 || angle > 90)
+                stopFlag[i%2] = true;
+        }
+        else
             continue;
         // detect eys in rotated image
-        findMostRightEye(detectEyeAtAngle(target, angle, Size(30 * inputScale, 30 * inputScale)), tempEyes);
-        if(!tempEyes.empty()){// if find an eye
+        if(findMostRightEyes(detectEyeAtAngle(target, angle, Size(40 * inputScale, 40 * inputScale)), tempEyes)){// if find an eye
+            sigFlag[i%2] = false;
+            isFoundEye[i%2] = true;
             // for tbAngle
-            angleSum += angle;
-            angleCount++;
+            angleSum += angle * tempEyes.size();
+            angleCount += tempEyes.size();
             // record eye centers
             Point2f ptr;
-            ptr = Point2f(tempEyes.tl().x + tempEyes.width / 2, tempEyes.tl().y + tempEyes.height / 2);
-            
-            circle(target, ptr, 1, Scalar(255, 255, 0), 3);
-            line(target, ptr, center, Scalar(0, 255, 0));
+            for(size_t i=0; i<tempEyes.size(); i++){
+                ptr = Point2f(tempEyes[i].tl().x + tempEyes[i].width / 2, tempEyes[i].tl().y + tempEyes[i].height / 2);
+                
+                circle(target, ptr, 1, Scalar(255, 255, 0), 3);
+                line(target, ptr, center, Scalar(0, 255, 0));
 
-            ptr += displacement;
-            ptr *= scale / inputScale;
-            
-            tempDis.dis = ptr - Point2f(tbCenter);
-            tempDis.seq = angleCount - 1;
-            tempDis.flag = false;
-            
-            dis.push_back(tempDis);
-            eyes.push_back(tempEyes);
+                ptr += displacement;
+                ptr *= scale / inputScale;
+                
+                tempDis.dis = ptr - Point2f(tbCenter);
+                tempDis.seq = angleCount - 1;
+                tempDis.flag = false;
+                
+                dis.push_back(tempDis);
+                eyes.push_back(tempEyes[i]);
+            }
         }
+        else if(sigFlag[i%2] == 3 && isFoundEye[i%2])
+            stopFlag[i%2] = true;
+        else if(sigFlag[i%2] < 3 && isFoundEye[i%2])
+            sigFlag[i%2]++;
     }
     
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
             isLostFrame = true;
             lostFrame += 0.05;
-            tuneByDetection(5, inputScale, 2.5);
+            tuneByDetection(5, inputScale / 2, 2.5);
             return false;
         }
         else{
@@ -206,7 +221,8 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         averageCenter /= pointCount;
         averageSide /= pointCount;
         
-        circle(target, (Point2f(tbCenter) + averageCenter) / scale * inputScale - displacement, 6, Scalar(0, 0, 255), 6);
+        circle(target, (Point2f(tbCenter) + averageCenter) / scale * inputScale - displacement, 2, Scalar(0, 0, 255), 2);
+        rescale(target, target, 1 / inputScale);
         imshow("tune", target);
 
         // updating tracking box parameter
@@ -219,6 +235,21 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     
 //    kMeansTuning(eyeCenters, inputScale);
 //    getTrackingBox();
+    return true;
+}
+
+bool EyeTracker::getEyeRegion(){
+    if(enlargedRect(originTrackingBox, 1, 1).empty())
+        return false;
+    
+    namedWindow("eye");
+    
+    originFrame(enlargedRect(originTrackingBox, 1, 1)).copyTo(eye);
+    if(tbAngle != 0){
+        Mat rotMat = getRotationMatrix2D(Point2f(eye.cols / 2, eye.rows / 2), tbAngle, 1); // get rotation matrix
+        warpAffine(eye, eye, rotMat, eye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));    // rotate the image
+    }
+    imshow("eye", eye);
     return true;
 }
 
@@ -311,28 +342,30 @@ vector<Rect> EyeTracker::detectEyeAndFace(Mat src, Size minEye, bool isFace){
         }
     }
     else{
-        eyes_cascade.detectMultiScale( src, eyes, 1.1, 3, 0, minEye);
+        eyes_cascade.detectMultiScale( src, eyes, 1.1, 2, 0, minEye);
     }
     
     return eyes;
 }
 
-bool EyeTracker::findMostRightEye(vector<Rect> eyes, Rect &eye){
-    int index(-1), x(0);
-    for(size_t i=0; i<eyes.size(); i++){
-        if(eyes[i].br().x + eyes[i].width / 2 > x){
-            x = eyes[i].br().x + eyes[i].width / 2;
-            index = int(i);
-        }
+bool EyeTracker::findMostRightEyes(vector<Rect> eyes, vector<Rect> &rightEyes){
+    if(eyes.size() == 0)
+        return false;
+    
+    rightEyes.assign(eyes.begin(), eyes.end());
+    float averageX(0);
+    for(size_t i=0; i<eyes.size(); i++)
+        averageX += rightEyes[i].tl().x + rightEyes[i].width / 2;
+    averageX /= rightEyes.size();
+    // clear rects on the left
+    for(vector<Rect>::iterator iter=rightEyes.begin(); iter != rightEyes.end();){
+        if(iter->tl().x + iter->width / 2 < averageX - tbWidth / 2)
+            rightEyes.erase(iter);
+        else
+            iter++;
     }
     
-    if(index == -1){
-        return false;
-    }
-    else{
-        eye = eyes[index];
-        return true;
-    }
+    return true;
 }
 
 vector<Rect> EyeTracker::detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace){
