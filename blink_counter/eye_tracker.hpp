@@ -47,7 +47,8 @@ private:
     
 public:
     // for image processing
-    double rescale(Mat src, Mat &dst, double inputScale);
+    double rescalePyr(Mat src, Mat &dst, double inputScale);
+    double rescaleSize(Mat src, Mat &dst, double inputScale);
     // for eye detection
     vector<Rect> detectEyeAndFace(Mat src, Size minEye, bool isFace = true);
     vector<Rect> detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace = false);
@@ -62,6 +63,7 @@ public:
     void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
     // for blink detection
     bool getEyeRegion();
+    bool blinkDetection();
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -92,12 +94,12 @@ public:
     // for checkistracking
     int maxLostFrame = 10;
     // for tune by detection
-    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.9, rectForTrackPercentage = 1.25;
+    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95, rectForTrackPercentage = 1.35;
     double centerFilterPercentage = 0.20;
     float lostFrame = 0;
     bool isLostFrame = false;
     // for blink detector:
-    Mat eye;
+    Mat curEye, prevEye;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置

@@ -44,7 +44,7 @@ int main(){
         tracker.setTimeStart();
         tracker.trackByOptFlow(0.5);
         tracker.tuneByDetection(5, 0.5);
-        tracker.getEyeRegion();
+        tracker.blinkDetection();
         tracker.setTimeEnd();
         tracker.drawTrackingBox(frame);
         tracker.drawOptFlow(frame);

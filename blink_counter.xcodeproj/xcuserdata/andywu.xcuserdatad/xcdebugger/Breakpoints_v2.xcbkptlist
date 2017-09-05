@@ -40,11 +40,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.hpp"
-            timestampString = "526207160.84137"
+            timestampString = "526316291.583753"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "88"
-            endingLineNumber = "88"
+            startingLineNumber = "90"
+            endingLineNumber = "90"
             landmarkName = "class EyeTracker"
             landmarkType = "3">
          </BreakpointContent>
@@ -56,11 +56,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "422"
-            endingLineNumber = "422"
+            startingLineNumber = "449"
+            endingLineNumber = "449"
             landmarkName = "EyeTracker::drawTrackingBox(Mat &amp;dst)"
             landmarkType = "7">
          </BreakpointContent>
@@ -152,12 +152,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "301"
-            endingLineNumber = "301"
-            landmarkName = "EyeTracker::rescale(Mat src, Mat &amp;dst, double inputScale)"
+            startingLineNumber = "321"
+            endingLineNumber = "321"
+            landmarkName = "EyeTracker::rescalePyr(Mat src, Mat &amp;dst, double inputScale)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -168,12 +168,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "311"
-            endingLineNumber = "311"
-            landmarkName = "EyeTracker::rescale(Mat src, Mat &amp;dst, double inputScale)"
+            startingLineNumber = "331"
+            endingLineNumber = "331"
+            landmarkName = "EyeTracker::rescalePyr(Mat src, Mat &amp;dst, double inputScale)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -184,11 +184,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "508"
-            endingLineNumber = "508"
+            startingLineNumber = "535"
+            endingLineNumber = "535"
             landmarkName = "EyeTracker::drawOptFlow(Mat &amp;dst)"
             landmarkType = "7">
          </BreakpointContent>
@@ -200,11 +200,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "505"
-            endingLineNumber = "505"
+            startingLineNumber = "532"
+            endingLineNumber = "532"
             landmarkName = "EyeTracker::drawOptFlow(Mat &amp;dst)"
             landmarkType = "7">
          </BreakpointContent>
@@ -216,11 +216,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "509"
-            endingLineNumber = "509"
+            startingLineNumber = "536"
+            endingLineNumber = "536"
             landmarkName = "EyeTracker::drawOptFlow(Mat &amp;dst)"
             landmarkType = "7">
          </BreakpointContent>
@@ -232,11 +232,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "450"
-            endingLineNumber = "450"
+            startingLineNumber = "477"
+            endingLineNumber = "477"
             landmarkName = "EyeTracker::opticalFlow(Rect src)"
             landmarkType = "7">
          </BreakpointContent>
@@ -248,11 +248,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "454"
-            endingLineNumber = "454"
+            startingLineNumber = "481"
+            endingLineNumber = "481"
             landmarkName = "EyeTracker::opticalFlow(Rect src)"
             landmarkType = "7">
          </BreakpointContent>
@@ -264,11 +264,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "497"
-            endingLineNumber = "497"
+            startingLineNumber = "524"
+            endingLineNumber = "524"
             landmarkName = "EyeTracker::opticalFlow(Rect src)"
             landmarkType = "7">
          </BreakpointContent>
@@ -280,11 +280,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "483"
-            endingLineNumber = "483"
+            startingLineNumber = "510"
+            endingLineNumber = "510"
             landmarkName = "EyeTracker::opticalFlow(Rect src)"
             landmarkType = "7">
          </BreakpointContent>
@@ -296,11 +296,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "494"
-            endingLineNumber = "494"
+            startingLineNumber = "521"
+            endingLineNumber = "521"
             landmarkName = "EyeTracker::opticalFlow(Rect src)"
             landmarkType = "7">
          </BreakpointContent>
@@ -312,11 +312,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "496"
-            endingLineNumber = "496"
+            startingLineNumber = "523"
+            endingLineNumber = "523"
             landmarkName = "EyeTracker::opticalFlow(Rect src)"
             landmarkType = "7">
          </BreakpointContent>
@@ -328,11 +328,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "516"
-            endingLineNumber = "516"
+            startingLineNumber = "543"
+            endingLineNumber = "543"
             landmarkName = "EyeTracker::filteredDisplacement()"
             landmarkType = "7">
          </BreakpointContent>
@@ -344,11 +344,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "527"
-            endingLineNumber = "527"
+            startingLineNumber = "554"
+            endingLineNumber = "554"
             landmarkName = "EyeTracker::filteredDisplacement()"
             landmarkType = "7">
          </BreakpointContent>
@@ -360,11 +360,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "568"
-            endingLineNumber = "568"
+            startingLineNumber = "595"
+            endingLineNumber = "595"
             landmarkName = "EyeTracker::filteredDisplacement()"
             landmarkType = "7">
          </BreakpointContent>
@@ -376,11 +376,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "550"
-            endingLineNumber = "550"
+            startingLineNumber = "577"
+            endingLineNumber = "577"
             landmarkName = "EyeTracker::filteredDisplacement()"
             landmarkType = "7">
          </BreakpointContent>
@@ -392,11 +392,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "555"
-            endingLineNumber = "555"
+            startingLineNumber = "582"
+            endingLineNumber = "582"
             landmarkName = "EyeTracker::filteredDisplacement()"
             landmarkType = "7">
          </BreakpointContent>
@@ -425,7 +425,7 @@
             condition = "displacement == Point2f(0, 0)"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526229598.708224"
+            timestampString = "526272569.820675"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "131"
@@ -442,7 +442,7 @@
             condition = "displacement.x == 0 &amp;&amp; displacement.y == 0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526229598.708224"
+            timestampString = "526272569.820675"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "132"
@@ -458,11 +458,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526229598.708224"
+            timestampString = "526272569.820675"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "128"
-            endingLineNumber = "128"
+            startingLineNumber = "127"
+            endingLineNumber = "127"
             landmarkName = "EyeTracker::tuneByDetection(double step, double inputScale, double trackRegionScale)"
             landmarkType = "7">
          </BreakpointContent>
@@ -474,7 +474,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231431.954137"
+            timestampString = "526272569.820675"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "150"
@@ -490,7 +490,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231431.954137"
+            timestampString = "526272569.820675"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "149"
@@ -506,7 +506,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526272569.820675"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "151"
@@ -522,12 +522,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "366"
-            endingLineNumber = "366"
-            landmarkName = "EyeTracker::findMostRightEye(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
+            startingLineNumber = "393"
+            endingLineNumber = "393"
+            landmarkName = "EyeTracker::findMostRightEyes(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -538,12 +538,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "355"
-            endingLineNumber = "355"
-            landmarkName = "EyeTracker::findMostRightEye(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
+            startingLineNumber = "382"
+            endingLineNumber = "382"
+            landmarkName = "EyeTracker::findMostRightEyes(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -570,12 +570,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "352"
-            endingLineNumber = "352"
-            landmarkName = "EyeTracker::findMostRightEye(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
+            startingLineNumber = "379"
+            endingLineNumber = "379"
+            landmarkName = "EyeTracker::findMostRightEyes(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -586,12 +586,28 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "blink_counter/eye_tracker.cpp"
-            timestampString = "526231690.692328"
+            timestampString = "526316454.611174"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "359"
-            endingLineNumber = "359"
-            landmarkName = "EyeTracker::findMostRightEye(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
+            startingLineNumber = "386"
+            endingLineNumber = "386"
+            landmarkName = "EyeTracker::findMostRightEyes(vector&lt;Rect&gt; eyes, vector&lt;Rect&gt; &amp;rightEyes)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "blink_counter/eye_tracker.cpp"
+            timestampString = "526316454.611174"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "348"
+            endingLineNumber = "348"
+            landmarkName = "EyeTracker::rescaleSize(Mat src, Mat &amp;dst, double inputScale)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
