@@ -244,6 +244,9 @@ bool EyeTracker::getEyeRegion(){
     
     namedWindow("eye");
     
+    if(!curEye.empty()) // update prevEye when necessary
+        prevEye = curEye;
+    
     originFrame(enlargedRect(originTrackingBox, 1, 1)).copyTo(curEye);
     if(tbAngle != 0){
         Mat rotMat = getRotationMatrix2D(Point2f(curEye.cols / 2, curEye.rows / 2), tbAngle, 1); // get rotation matrix
@@ -261,13 +264,10 @@ void EyeTracker::checkIsTracking(){
 
 bool EyeTracker::blinkDetection(){
     getEyeRegion();
-    // check if there is a tracked eye
-    if(curEye.empty())
-        return false;
-    else if(prevEye.empty()){
-        prevEye = curEye.clone();
-        return false;
-    }
+    // check if there is a tracked eye (need a check function!!!!)
+    if(!checkIsDetectBlink())
+        return false; // need further thinking
+    
     
     namedWindow("residue");
     resize(prevEye, prevEye, curEye.size());
