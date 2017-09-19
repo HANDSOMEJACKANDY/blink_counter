@@ -64,6 +64,8 @@ public:
     // for blink detection
     bool getEyeRegionWithCheck();
     bool blinkDetection();
+    void grayIntegral(Mat src, Mat &dst);
+    Point2f opticalFlowForBlinkDetection();
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -95,10 +97,13 @@ public:
     Rect trackingBox = Rect(0,0,0,0), originTrackingBox = Rect(0,0,0,0);
     Point tbCenter = Point(0,0);
     int tbWidth = 0, tbHeight = 0;
+    Point tbOrgCenter = Point(0,0);
+    int tbOrgWidth = 0, tbOrgHeight = 0;
     double tbAngle = 0;
     // for checkistracking
-    int maxLostFrame = 10;
+    int maxLostFrame = 5;
     // for tune by detection
+    bool isTuning = false;
     Point2f averageCenterDisplacement;
     double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95, rectForTrackPercentage = 1.35;
     double centerFilterPercentage = 0.20;
@@ -106,7 +111,8 @@ public:
     int badEyeCountForTuning = 0;
     bool isLostFrame = false;
     // for blink detector:
-    char badEyeCount = 0;
+    int badEyeCount = 0;
+    Size eyeSize = Size(200, 200);
     Mat curEye, prevEye;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
@@ -117,11 +123,9 @@ public:
     float centerFeaturePercentage = 0.666;
     double qLevel = 0.01;   // 特征检测的等级
     double minDist = 10.0;  // 两特征点之间的最小距离
-    vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
-    vector<float> err;
     Point2f optDisplacement;
     // filtering displacement
-    float filterPercentage = 0.15; //seems perfect with 1/5
+    double filterPercentage = 0.15; //seems perfect with 1/5
     // for time counting
     clock_t start;
     double sumTime = 0, timeCount = 0;

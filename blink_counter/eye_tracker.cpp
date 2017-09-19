@@ -33,7 +33,6 @@ void EyeTracker::trackByOptFlow(double inputScale){
     }
     else{
         vector<Rect> eyes;
-
         // double start = getTickCount(); //to count the period the process takes
 
         //swap prev and cur
@@ -78,7 +77,7 @@ void EyeTracker::trackByOptFlow(double inputScale){
                 }
             }
             if(findMostRightEyes(tempEyes, eyes)){
-                trackingBox = eyes[0];
+                trackingBox = eyes[random()%eyes.size()];
                 //recording the info of tracking box
                 tbWidth = trackingBox.width;
                 tbHeight = trackingBox.height;
@@ -121,8 +120,12 @@ void EyeTracker::trackByOptFlow(double inputScale){
 
 bool EyeTracker::tuneByDetection(double step, double inputScale, double trackRegionScale){ // when eye movements from opt is small, we do not do tuning
     // decide if tuning is necessary or practical
-    if(!is_tracking || getDis(optDisplacement) < 1)
+    if((!is_tracking || getDis(optDisplacement) < 1) && !(badEyeCount >= 2)){
+        isTuning = false;
         return false;
+    }
+    else
+        isTuning = true;
     
     namedWindow("tune");
     // rescaling
@@ -187,7 +190,7 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     // check if search for the eye in a larger scale
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
-            lostFrame += 0.1;
+            lostFrame += 0.5;
             tuneByDetection(5, inputScale / 2, 3); // 2.5 can be slightly faster but play worse in tracking
             return false;
         }
@@ -202,7 +205,6 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         tbAngle = angleSum / angleCount;
         isLostFrame = false;
         if(trackRegionScale == 1){
-            badEyeCountForTuning = 0;
             lostFrame = 0;
         }
     }
@@ -249,15 +251,28 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
 }
 
 void EyeTracker::checkIsTracking(){
-    if(lostFrame > maxLostFrame){
+    if(lostFrame >= maxLostFrame && is_tracking){
         is_tracking = false;
     }
 }
 
 bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive two confidently grabed eye is stored in cur/prevEye
+    if(!is_tracking)
+        return false;
+    
     // count low quality grabed eyes: unmatched result between tune and optflow, no eye found
-    char isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15;
+    bool isBadEye;
+    if(isTuning)
+        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15 || getDis(optDisplacement) > 15;
+    else{ // this is to assist checking if there is a eye grabed if tuning is not there
+        vector<Rect> tempEyes;
+        isLostFrame = !findMostRightEyes(detectEyeAtAngle(originFrame(enlargedRect(originTrackingBox, 1, 1)), tbAngle, Size(40, 40)), tempEyes);
+        isBadEye = isLostFrame;
+    }
+    if(badEyeCount > 0 && !isBadEye) // when a good eye is found, re_init the badEyeCount
+        badEyeCount = 0;
     badEyeCount += isBadEye;
+    
     // declare fail to grab eye when two consecutive bad eye detected or no eye grabed at all
     if(enlargedRect(originTrackingBox, 1, 1).empty() || badEyeCount >= 2 ){
         if(!prevEye.empty()){
@@ -266,7 +281,6 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
         }
         else if(!curEye.empty())
             curEye = Mat();
-        badEyeCount = 0;
         return false;
     }
     
@@ -274,16 +288,28 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     
     prevEye = curEye.clone();
     // get curEye
+    cout << enlargedRect(originTrackingBox, 1, 1).empty() << endl;
     originFrame(enlargedRect(originTrackingBox, 1, 1)).copyTo(curEye);
     cvtColor(curEye, curEye, COLOR_BGR2GRAY);
+    // do rotation
     if(tbAngle != 0){
         Mat rotMat = getRotationMatrix2D(Point2f(curEye.cols / 2, curEye.rows / 2), tbAngle, 1); // get rotation matrix
         warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255)); // rotate the image
     }
+    // cut out the middle region:
+    double cutPortion = 2.75; // no larger than 6 !!!
+    Point2f tempCenter = Point2f(tbOrgWidth / 2, tbOrgWidth / 2), downDisplacement = Point2f(0, tbOrgHeight / 6);
+    curEye = curEye(Rect(tempCenter / cutPortion + downDisplacement, tempCenter / cutPortion * (cutPortion * 2 - 1) + downDisplacement));
+    // normalizing and denoising
+    //medianBlur(curEye, curEye, 3);
+    resize(curEye, curEye, eyeSize);
+    
     imshow("eye", curEye);
+    
     // wait until two eyes are grabed
     if(prevEye.empty())
         return false;
+    resize(prevEye, prevEye, curEye.size());
     return true;
 }
 
@@ -293,20 +319,106 @@ bool EyeTracker::blinkDetection(){
     // check if there is a tracked eye (need a check function!!!!)
     
     namedWindow("residue");
-    resize(prevEye, prevEye, curEye.size());
-    Mat residue = curEye - prevEye;
+    // Mat residue = curEye - prevEye;
+    Mat residue = curEye.clone();
     double averageGrayScale = 0;
     uchar* imagePtr = residue.ptr<uchar>(0);
     for(int i=0; i<residue.rows*residue.cols; i++){
         averageGrayScale += imagePtr[i];
     }
     averageGrayScale /= residue.rows*residue.cols;
-    threshold(residue, residue, averageGrayScale, 255, cv::THRESH_BINARY);
-    Mat ele = getStructuringElement(MORPH_RECT, Size(15, 15));
-    morphologyEx(residue, residue, MORPH_OPEN, ele);
+    threshold(residue, residue, averageGrayScale / 1.5, 255, cv::THRESH_BINARY);
+    opticalFlowForBlinkDetection();
+    //grayIntegral(residue, residue);
+    //Mat ele = getStructuringElement(MORPH_RECT, Size(10, 10));
+    //morphologyEx(residue, residue, MORPH_CLOSE, ele);
     imshow("residue", residue);
 
     return true;
+}
+
+Point2f EyeTracker::opticalFlowForBlinkDetection(){
+    vector<Point2f> eyePoints[2];
+    goodFeaturesToTrack(prevEye, eyePoints[0], 50, 0.01, 5);
+    
+    if(eyePoints[0].size() == 0)
+        return Point2f(0, 0);
+    
+    vector<uchar> status;
+    vector<float> err;
+    calcOpticalFlowPyrLK(prevEye, curEye, eyePoints[0], eyePoints[1], status, err);
+    
+    int k(0);
+    for (size_t i = 0; i<eyePoints[1].size(); i++)
+    {
+        if (status[i] && getDis(eyePoints[0][i], eyePoints[1][i]) > 10) // check if the point is qualified
+        {
+            eyePoints[1][k] = eyePoints[1][i];
+            eyePoints[0][k++] = eyePoints[0][i];
+        }
+    }
+    eyePoints[1].resize(k);
+    eyePoints[0].resize(k);
+    
+    Mat dst = curEye.clone();
+    for (size_t i = 0; i<eyePoints[1].size(); i++)
+    {
+        line(dst, eyePoints[0][i], eyePoints[1][i], Scalar(0, 0, 255));
+        circle(dst, eyePoints[1][i], 3, Scalar(0, 255, 0), -1);
+    }
+    namedWindow("eyess");
+    imshow("eyess", dst);
+    
+    return Point2f(0, 0);
+}
+
+void EyeTracker::grayIntegral(Mat src, Mat &dst){ // do gray integral to threshold image
+    Mat paintX = Mat::zeros( src.rows, src.cols, CV_8UC1 );
+    Mat paintY = Mat::zeros( src.rows, src.cols, CV_8UC1 );
+    int* v = new int[src.cols];
+    int* h = new int[src.rows];
+    uchar* myptr;
+    int x,y;
+    for( x=0; x<src.cols; x++)
+    {
+        v[x] = 0;
+        for(y=0; y<src.rows; y++)
+        {
+            myptr = src.ptr<uchar>(y);        //逐行扫描，返回每行的指针
+            if( myptr[x] == 0 )
+                v[x]++;
+        }
+    }
+    for( x=0; x<src.cols; x++)
+    {
+        for(y=0; y<v[x]; y++)
+        {
+            paintX.ptr<uchar>(y)[x] = 255;
+        }
+    }
+    for( x=0; x<src.rows; x++)
+    {
+        h[x] = 0;
+        myptr = src.ptr<uchar>(x);
+        for(y=0; y<src.cols; y++)
+        {
+            if( myptr[y] == 0 )
+                h[x]++;
+        }
+    }
+    for( x=0; x<src.rows; x++)
+    {
+        myptr = paintY.ptr<uchar>(x);
+        for(y=0; y<h[x]; y++)
+        {
+            myptr[y] = 255;
+        }
+    }
+    namedWindow("wnd_X", CV_WINDOW_AUTOSIZE);
+    namedWindow("wnd_Y", CV_WINDOW_AUTOSIZE);
+    //显示图像
+    imshow("wnd_X", paintX);
+    imshow("wnd_Y", paintY);
 }
 
 bool EyeTracker::compDis(const DisFilter a, const DisFilter b){
@@ -426,6 +538,9 @@ bool EyeTracker::findMostRightEyes(vector<Rect> eyes, vector<Rect> &rightEyes){ 
 }
 
 vector<Rect> EyeTracker::detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace){
+    if(src.empty())
+        return vector<Rect>();
+    
     Mat rotImg;
     Point2f center = Point2f(src.size().width / 2, src.size().height / 2), eyeCenter, tl, br; // new center
     if(angle != 0){
@@ -474,6 +589,9 @@ Point2f EyeTracker::rotatePoint(Point2f center, double angle, Point2f ptr){
 void EyeTracker::getTrackingBox(){
     trackingBox = enlargedRect(Rect(Point(tbCenter.x - tbWidth / 2, tbCenter.y - tbHeight / 2), Point(tbCenter.x + tbWidth / 2, tbCenter.y + tbHeight / 2)), 1, scale);
     originTrackingBox = Rect(trackingBox.tl() / scale, trackingBox.br() / scale);
+    tbOrgWidth = tbWidth / scale;
+    tbOrgHeight = tbHeight / scale;
+    tbOrgCenter = tbCenter / scale;
 }
 
 void EyeTracker::drawTrackingBox(Mat &dst){
@@ -534,13 +652,16 @@ void EyeTracker::opticalFlow(Rect src)
         tempPoint[0][i] = point[0][i] - Point2f(src.tl());
     }
     
+    vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
+    vector<float> err;
+    
     calcOpticalFlowPyrLK(prevFrame(src), curFrame(src), tempPoint[0], tempPoint[1], status, err);
     point[1].resize(tempPoint[1].size());
     
     int k = 0;
     for (size_t i = 0; i<tempPoint[1].size(); i++)
     {
-        if (status[i] && ((abs(tempPoint[0][i].x - tempPoint[1][i].x) + abs(tempPoint[0][i].y - tempPoint[1][i].y)) > 0.1)) // check if the point is qualified
+        if (status[i] && getDis(tempPoint[0][i], tempPoint[1][i]) > 0.1) // check if the point is qualified
         {
             initPoint[k] = initPoint[i];
             point[1][k] = tempPoint[1][i] + Point2f(src.tl());
@@ -581,45 +702,47 @@ Point2f EyeTracker::filteredDisplacement(){
         tempDis[i].seq = int(i);
     }
     
-    vector<DisFilter>::iterator iter;
-    sort(tempDis.begin(), tempDis.end(), compX);
-    iter = tempDis.begin();
-    for(int i=0; i<size*filterPercentage; i++){
-        (iter++)->flag = true;
-    }
-    iter = tempDis.end();
-    for(int i=0; i<size*filterPercentage; i++){
-        (--iter)->flag = true;
-    }
-    
-    sort(tempDis.begin(), tempDis.end(), compY);
-    iter = tempDis.begin();
-    for(int i=0; i<size*filterPercentage; i++){
-        (iter++)->flag = true;
-    }
-    iter = tempDis.end();
-    for(int i=0; i<size*filterPercentage; i++){
-        (--iter)->flag = true;
-    }
-    
-    for(iter=tempDis.begin(); iter != tempDis.end();){
-        if(iter->flag == true){
-            *(point[0].begin() + iter->seq) = Point2f(-1, -1);
-            *(point[1].begin() + iter->seq) = Point2f(-1, -1);
-            tempDis.erase(iter);
+    if(size - 2*size*filterPercentage - 5 > 0){ // if there is too little points, do not do filtering
+        vector<DisFilter>::iterator iter;
+        sort(tempDis.begin(), tempDis.end(), compX);
+        iter = tempDis.begin();
+        for(int i=0; i<size*filterPercentage; i++){
+            (iter++)->flag = true;
         }
-        else
-            iter++;
-    }
-    
-    for(size_t i =0; i<point[0].size();){
-        if(point[0][i] == Point2f(-1, -1)){
-            point[0].erase(point[0].begin() + i);
-            point[1].erase(point[1].begin() + i);
-            initPoint.erase(initPoint.begin() + i);
+        iter = tempDis.end();
+        for(int i=0; i<size*filterPercentage; i++){
+            (--iter)->flag = true;
         }
-        else
-            i++;
+        
+        sort(tempDis.begin(), tempDis.end(), compY);
+        iter = tempDis.begin();
+        for(int i=0; i<double(size*filterPercentage); i++){
+            (iter++)->flag = true;
+        }
+        iter = tempDis.end();
+        for(int i=0; i<double(size*filterPercentage); i++){
+            (--iter)->flag = true;
+        }
+        
+        for(iter=tempDis.begin(); iter != tempDis.end();){
+            if(iter->flag == true){
+                *(point[0].begin() + iter->seq) = Point2f(-101, -101);
+                *(point[1].begin() + iter->seq) = Point2f(-101, -101);
+                tempDis.erase(iter);
+            }
+            else
+                iter++;
+        }
+        
+        for(size_t i =0; i<point[0].size();){
+            if(point[0][i] == Point2f(-101, -101)){
+                point[0].erase(point[0].begin() + i);
+                point[1].erase(point[1].begin() + i);
+                initPoint.erase(initPoint.begin() + i);
+            }
+            else
+                i++;
+        }
     }
     
     for(size_t i=0; i<tempDis.size(); i++){
@@ -628,6 +751,11 @@ Point2f EyeTracker::filteredDisplacement(){
     }
     disX /= tempDis.size();
     disY /= tempDis.size();
+    
+    if(disX != disX){
+        disX = 0;
+        disY = 0;
+    }
     
     return Point2f(disX, disY);
 }
