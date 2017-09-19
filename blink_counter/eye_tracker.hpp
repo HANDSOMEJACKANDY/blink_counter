@@ -103,6 +103,7 @@ public:
     double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95, rectForTrackPercentage = 1.35;
     double centerFilterPercentage = 0.20;
     float lostFrame = 0;
+    int badEyeCountForTuning = 0;
     bool isLostFrame = false;
     // for blink detector:
     char badEyeCount = 0;
@@ -118,6 +119,7 @@ public:
     double minDist = 10.0;  // 两特征点之间的最小距离
     vector<uchar> status; // 跟踪特征的状态，特征的流发现为1，否则为0
     vector<float> err;
+    Point2f optDisplacement;
     // filtering displacement
     float filterPercentage = 0.15; //seems perfect with 1/5
     // for time counting

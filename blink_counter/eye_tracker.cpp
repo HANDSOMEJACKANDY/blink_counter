@@ -84,6 +84,8 @@ void EyeTracker::trackByOptFlow(double inputScale){
                 tbHeight = trackingBox.height;
                 tbCenter = trackingBox.tl() + Point(tbWidth / 2, tbHeight / 2);
                 getTrackingBox();
+                // re_initiating variables
+                optDisplacement = Point2f(0, 0);
                 is_tracking = true;
                 lostFrame = 0;
                 isLostFrame = false;
@@ -103,7 +105,8 @@ void EyeTracker::trackByOptFlow(double inputScale){
             if(!enlargedRect(trackingBox, 2.5, scale).empty()){
                 opticalFlow(enlargedRect(trackingBox, 2.5, scale));
                 if(point[1].size() != 0){
-                    tbCenter += Point(filteredDisplacement());
+                    optDisplacement = filteredDisplacement();
+                    tbCenter += Point(optDisplacement);
                     getTrackingBox();
                 }
             }
@@ -116,9 +119,9 @@ void EyeTracker::trackByOptFlow(double inputScale){
     }
 }
 
-bool EyeTracker::tuneByDetection(double step, double inputScale, double trackRegionScale){
-    Rect scaledTrackingBox = Rect(originTrackingBox.tl() * inputScale, originTrackingBox.br() * inputScale);
-    if(enlargedRect(scaledTrackingBox, trackRegionScale, inputScale).empty())
+bool EyeTracker::tuneByDetection(double step, double inputScale, double trackRegionScale){ // when eye movements from opt is small, we do not do tuning
+    // decide if tuning is necessary or practical
+    if(!is_tracking || getDis(optDisplacement) < 1)
         return false;
     
     namedWindow("tune");
@@ -127,6 +130,7 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
 //    rescalePyr(originFrame, scaledFrame, inputScale);
     rescaleSize(originFrame, scaledFrame, inputScale);
 
+    Rect scaledTrackingBox = Rect(originTrackingBox.tl() * inputScale, originTrackingBox.br() * inputScale);
     Mat target = scaledFrame(enlargedRect(scaledTrackingBox, trackRegionScale, inputScale));
     Point2f displacement = enlargedRect(scaledTrackingBox, trackRegionScale, inputScale).tl(); // displacement of tracking box
     Point2f center = Point2f(target.size().width / 2, target.size().height / 2); // new center
@@ -178,6 +182,8 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         else if(sigFlag[i%2] < 3 && isFoundEye[i%2])
             sigFlag[i%2]++;
     }
+    
+    cout << "                                        " <<optDisplacement << endl;
     // check if search for the eye in a larger scale
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
@@ -196,6 +202,7 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         tbAngle = angleSum / angleCount;
         isLostFrame = false;
         if(trackRegionScale == 1){
+            badEyeCountForTuning = 0;
             lostFrame = 0;
         }
     }
@@ -268,9 +275,10 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     prevEye = curEye.clone();
     // get curEye
     originFrame(enlargedRect(originTrackingBox, 1, 1)).copyTo(curEye);
+    cvtColor(curEye, curEye, COLOR_BGR2GRAY);
     if(tbAngle != 0){
         Mat rotMat = getRotationMatrix2D(Point2f(curEye.cols / 2, curEye.rows / 2), tbAngle, 1); // get rotation matrix
-        warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));    // rotate the image
+        warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255)); // rotate the image
     }
     imshow("eye", curEye);
     // wait until two eyes are grabed
@@ -287,10 +295,17 @@ bool EyeTracker::blinkDetection(){
     namedWindow("residue");
     resize(prevEye, prevEye, curEye.size());
     Mat residue = curEye - prevEye;
-    
+    double averageGrayScale = 0;
+    uchar* imagePtr = residue.ptr<uchar>(0);
+    for(int i=0; i<residue.rows*residue.cols; i++){
+        averageGrayScale += imagePtr[i];
+    }
+    averageGrayScale /= residue.rows*residue.cols;
+    threshold(residue, residue, averageGrayScale, 255, cv::THRESH_BINARY);
+    Mat ele = getStructuringElement(MORPH_RECT, Size(15, 15));
+    morphologyEx(residue, residue, MORPH_OPEN, ele);
     imshow("residue", residue);
-    
-    prevEye = curEye.clone();
+
     return true;
 }
 
