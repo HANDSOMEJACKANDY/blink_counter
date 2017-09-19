@@ -62,7 +62,7 @@ public:
     static bool compDis(const DisFilter a, const DisFilter b);
     void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
     // for blink detection
-    bool getEyeRegion();
+    bool getEyeRegionWithCheck();
     bool blinkDetection();
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
@@ -76,6 +76,11 @@ public:
     void setTimeStart();
     void setTimeEnd();
     double getAverageTime();
+    // common use
+    double getDis(Point2f t, Point2f o = Point2f(0, 0)){
+        t = t - o;
+        return sqrt(t.x * t.x + t.y * t.y);
+    }
     
 public:
     string inputDir = "blink_counter/haarcascades/";
@@ -94,11 +99,13 @@ public:
     // for checkistracking
     int maxLostFrame = 10;
     // for tune by detection
+    Point2f averageCenterDisplacement;
     double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95, rectForTrackPercentage = 1.35;
     double centerFilterPercentage = 0.20;
     float lostFrame = 0;
     bool isLostFrame = false;
     // for blink detector:
+    char badEyeCount = 0;
     Mat curEye, prevEye;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;

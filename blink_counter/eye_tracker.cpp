@@ -136,8 +136,9 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     DisFilter tempDis;
     Mat rotMat, rotImg;
     double angle, angleSum(0), angleCount(0);
-    bool stopFlag[2]{false, false}, isFoundEye[2]{false, false};
-    int sigFlag[2]{0, 0};
+    bool stopFlag[2]{false, false}; // signal the failure of finding an eye at 3 consecutive angles
+    bool isFoundEye[2]{false, false}; // this is to make sure that at least one eye is found
+    char sigFlag[2]{0, 0};
     for(int i=0; i<20; i++){
         if(!stopFlag[i%2]){ // check if cannot find eyes no more
             angle = tbAngle + int(i / 2) * pow(-1, i % 2) * 10;
@@ -148,7 +149,7 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
             continue;
         // detect eys in rotated image
         if(findMostRightEyes(detectEyeAtAngle(target, angle, Size(40 * inputScale, 40 * inputScale)), tempEyes)){// if find an eye
-            sigFlag[i%2] = false;
+            sigFlag[i%2] = 0;
             isFoundEye[i%2] = true;
             // for tbAngle
             angleSum += angle * tempEyes.size();
@@ -172,20 +173,20 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
                 eyes.push_back(tempEyes[i]);
             }
         }
-        else if(sigFlag[i%2] == 3 && isFoundEye[i%2])
+        else if(sigFlag[i%2] == 3 && isFoundEye[i%2]) // only start to decide whether to stop searching when at least one eye is found
             stopFlag[i%2] = true;
         else if(sigFlag[i%2] < 3 && isFoundEye[i%2])
             sigFlag[i%2]++;
     }
-    
+    // check if search for the eye in a larger scale
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
-            isLostFrame = true;
             lostFrame += 0.1;
             tuneByDetection(5, inputScale / 2, 3); // 2.5 can be slightly faster but play worse in tracking
             return false;
         }
         else{
+            averageCenterDisplacement= Point2f(-1, -1);
             isLostFrame = true;
             lostFrame += 1;
             return false;
@@ -193,8 +194,8 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     }
     else{
         tbAngle = angleSum / angleCount;
+        isLostFrame = false;
         if(trackRegionScale == 1){
-            isLostFrame = false;
             lostFrame = 0;
         }
     }
@@ -202,31 +203,33 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     double pointCount(0);
     // filt away the most far away centers:
     sort(dis.begin(), dis.end(), compDis);
-    for(size_t i=0; i<(dis.size() >= 2) ? (dis.size() * centerFilterPercentage) : 0; i++){
+    for(size_t i=0; i<(dis.size() >= 2) ? (dis.size() * centerFilterPercentage) : 0; i++){ // do not do searching when there is too few eye detected
         eyes[dis[int(i)].seq] = Rect(0, 0, 0, 0);
         dis[i].dis = Point2f(0, 0);
     }
     // using average to tune the percise eye position
-    Point2f averageCenter = Point2f(0, 0);
+    averageCenterDisplacement= Point2f(0, 0);
     double averageSide(0);
     for(size_t i=0; i<eyes.size(); i++){
         if(eyes[i].width != 0){
             averageSide += eyes[i].width * scale / inputScale;
-            averageCenter += dis[i].dis;
+            averageCenterDisplacement += dis[i].dis;
             pointCount++;
         }
     }
     if(pointCount > 0){
 
-        averageCenter /= pointCount;
+        averageCenterDisplacement /= pointCount;
         averageSide /= pointCount;
         
-        circle(target, (Point2f(tbCenter) + averageCenter) / scale * inputScale - displacement, 2, Scalar(0, 0, 255), 2);
+        circle(target, (Point2f(tbCenter) + averageCenterDisplacement) / scale * inputScale - displacement, 2, Scalar(0, 0, 255), 2);
         rescaleSize(target, target, 1 / inputScale);
         imshow("tune", target);
 
         // updating tracking box parameter
-        tbCenter += Point(averageCenter) * tuningPercentageForCenter;
+        // we also have faith in optical flow and we will not abandon that!!!
+        tbCenter += Point(averageCenterDisplacement) * tuningPercentageForCenter;
+        // do some math to prevent over shrinking of tbWidth
         tbWidth = (tbWidth / rectForTrackPercentage * (1 - tuningPercentageForSide) + averageSide * tuningPercentageForSide) * rectForTrackPercentage;
         tbHeight = tbWidth;
 
@@ -238,36 +241,48 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     return true;
 }
 
-bool EyeTracker::getEyeRegion(){
-    if(enlargedRect(originTrackingBox, 1, 1).empty())
-        return false;
-    
-    namedWindow("eye");
-    
-    if(!curEye.empty()) // update prevEye when necessary
-        prevEye = curEye;
-    
-    originFrame(enlargedRect(originTrackingBox, 1, 1)).copyTo(curEye);
-    if(tbAngle != 0){
-        Mat rotMat = getRotationMatrix2D(Point2f(curEye.cols / 2, curEye.rows / 2), tbAngle, 1); // get rotation matrix
-        warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));    // rotate the image
-    }
-    imshow("eye", curEye);
-    return true;
-}
-
 void EyeTracker::checkIsTracking(){
     if(lostFrame > maxLostFrame){
         is_tracking = false;
     }
 }
 
-bool EyeTracker::blinkDetection(){
-    getEyeRegion();
-    // check if there is a tracked eye (need a check function!!!!)
-    if(!checkIsDetectBlink())
-        return false; // need further thinking
+bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive two confidently grabed eye is stored in cur/prevEye
+    // count low quality grabed eyes: unmatched result between tune and optflow, no eye found
+    char isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15;
+    badEyeCount += isBadEye;
+    // declare fail to grab eye when two consecutive bad eye detected or no eye grabed at all
+    if(enlargedRect(originTrackingBox, 1, 1).empty() || badEyeCount >= 2 ){
+        if(!prevEye.empty()){
+            prevEye = Mat();
+            curEye = Mat();
+        }
+        else if(!curEye.empty())
+            curEye = Mat();
+        badEyeCount = 0;
+        return false;
+    }
     
+    namedWindow("eye");
+    
+    prevEye = curEye.clone();
+    // get curEye
+    originFrame(enlargedRect(originTrackingBox, 1, 1)).copyTo(curEye);
+    if(tbAngle != 0){
+        Mat rotMat = getRotationMatrix2D(Point2f(curEye.cols / 2, curEye.rows / 2), tbAngle, 1); // get rotation matrix
+        warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));    // rotate the image
+    }
+    imshow("eye", curEye);
+    // wait until two eyes are grabed
+    if(prevEye.empty())
+        return false;
+    return true;
+}
+
+bool EyeTracker::blinkDetection(){
+    if(!getEyeRegionWithCheck())
+        return false;
+    // check if there is a tracked eye (need a check function!!!!)
     
     namedWindow("residue");
     resize(prevEye, prevEye, curEye.size());
@@ -375,7 +390,7 @@ vector<Rect> EyeTracker::detectEyeAndFace(Mat src, Size minEye, bool isFace){
     return eyes;
 }
 
-bool EyeTracker::findMostRightEyes(vector<Rect> eyes, vector<Rect> &rightEyes){
+bool EyeTracker::findMostRightEyes(vector<Rect> eyes, vector<Rect> &rightEyes){ // get all the eyes that is righter
     if(eyes.size() == 0)
         return false;
     
