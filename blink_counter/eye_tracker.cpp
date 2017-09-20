@@ -212,7 +212,7 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     double pointCount(0);
     // filt away the most far away centers:
     sort(dis.begin(), dis.end(), compDis);
-    for(size_t i=0; i<(dis.size() >= 2) ? (dis.size() * centerFilterPercentage) : 0; i++){ // do not do searching when there is too few eye detected
+    for(size_t i=0; i<(dis.size() > 4) ? (dis.size() * centerFilterPercentage) : 0; i++){ // do not do searching when there is too few eye detected
         eyes[dis[int(i)].seq] = Rect(0, 0, 0, 0);
         dis[i].dis = Point2f(0, 0);
     }
@@ -236,10 +236,12 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         imshow("tune", target);
 
         // updating tracking box parameter
+        // do para tuning:
+        getOptDisTunedParameter();
         // we also have faith in optical flow and we will not abandon that!!!
         tbCenter += Point(averageCenterDisplacement) * tuningPercentageForCenter;
         // do some math to prevent over shrinking of tbWidth
-        tbWidth = (tbWidth / rectForTrackPercentage * (1 - tuningPercentageForSide) + averageSide * tuningPercentageForSide) * rectForTrackPercentage;
+        tbWidth = (tbWidth / rectForTrackPercentageConst * (1 - tuningPercentageForSide) + averageSide * tuningPercentageForSide) * rectForTrackPercentageConst;
         tbHeight = tbWidth;
 
         getTrackingBox();
@@ -248,6 +250,13 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
 //    kMeansTuning(eyeCenters, inputScale);
 //    getTrackingBox();
     return true;
+}
+
+void EyeTracker::getOptDisTunedParameter(){
+    double para = 1 / (1 + exp(-getDis(optDisplacement) + 5));
+    cout << "logistic para = " << para << endl;
+    tuningPercentageForSide = para * tuningPercentageForSideConst;
+    tuningPercentageForCenter = para * tuningPercentageForCenterConst;
 }
 
 void EyeTracker::checkIsTracking(){
@@ -294,14 +303,21 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     // do rotation
     if(tbAngle != 0){
         Mat rotMat = getRotationMatrix2D(Point2f(curEye.cols / 2, curEye.rows / 2), tbAngle, 1); // get rotation matrix
-        warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255)); // rotate the image
+        //warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255)); // rotate the image
+        warpAffine(curEye, curEye, rotMat, curEye.size(), INTER_LINEAR, BORDER_DEFAULT);
     }
     // cut out the middle region:
-    double cutPortion = 2.75; // no larger than 6 !!!
-    Point2f tempCenter = Point2f(tbOrgWidth / 2, tbOrgWidth / 2), downDisplacement = Point2f(0, tbOrgHeight / 6);
-    curEye = curEye(Rect(tempCenter / cutPortion + downDisplacement, tempCenter / cutPortion * (cutPortion * 2 - 1) + downDisplacement));
-    // normalizing and denoising
+    double cutPortion = 2.75; // no larger than 3 !!!
+    Point2f tempCenter = Point2f(tbOrgWidth / 2, tbOrgWidth / 2), downDisplacement = Point2f(0, tbOrgHeight / 8);
+    Rect smallEyeRegion = Rect(tempCenter / cutPortion + downDisplacement, 2 * tempCenter - tempCenter / cutPortion + downDisplacement);
+    // make sure the down displacement won't break out of the eye image...
+    if(smallEyeRegion.br().y > curEye.rows)
+        smallEyeRegion.height = curEye.rows - smallEyeRegion.y;
+    // get the smaller eye
+    curEye = curEye(smallEyeRegion);
+    //normalizing and denoising
     //medianBlur(curEye, curEye, 3);
+    //equalizeHist(curEye, curEye);
     resize(curEye, curEye, eyeSize);
     
     imshow("eye", curEye);
@@ -327,7 +343,8 @@ bool EyeTracker::blinkDetection(){
         averageGrayScale += imagePtr[i];
     }
     averageGrayScale /= residue.rows*residue.cols;
-    threshold(residue, residue, averageGrayScale / 1.5, 255, cv::THRESH_BINARY);
+    threshold(residue, residue, averageGrayScale / 2, 255, cv::THRESH_BINARY);
+    // getHistogram();
     opticalFlowForBlinkDetection();
     //grayIntegral(residue, residue);
     //Mat ele = getStructuringElement(MORPH_RECT, Size(10, 10));
@@ -335,6 +352,51 @@ bool EyeTracker::blinkDetection(){
     imshow("residue", residue);
 
     return true;
+}
+
+void EyeTracker::getHistogram(){
+    //图片数量nimages
+    int nimages = 1;
+    //通道数量,我们总是习惯用数组来表示，后面会讲原因
+    int channels[1] = { 0 };
+    //输出直方图
+    Mat outputHist;
+    //维数
+    int dims = 1;
+    //存放每个维度直方图尺寸（bin数量）的数组histSize
+    int histSize[1] = { 256 };
+    //每一维数值的取值范围ranges
+    float hranges[2] = { 0, 255 };
+    //值范围的指针
+    const float *ranges[1] = { hranges };
+    //是否均匀
+    bool uni = true;
+    //是否累积
+    bool accum = false;
+    
+    //计算图像的直方图
+    cv::calcHist(&curEye, nimages, channels, cv::Mat(), outputHist, dims, histSize, ranges, uni, accum);
+    
+    //找到最大值和最小值
+    double maxValue = 0;
+    double minValue = 0;
+    cv::minMaxLoc(outputHist, &minValue, &maxValue, NULL, NULL);
+    
+    int height = 400;
+    Mat histPic(height, histSize[0], CV_8U, cv::Scalar(255));
+    
+    // double rate = (histSize[0] / maxValue)*0.9;
+    
+    for (int i = 0; i < histSize[0]; i++)
+    {
+        //得到每个i和箱子的值
+        float value = outputHist.at<float>(i);
+        //画直线
+        cv::line(histPic, cv::Point(i, height), cv::Point(i, height - value > 0 ? height - value : 0), Scalar(0));
+    }
+    namedWindow("hist");
+    imshow("hist", histPic);
+    return;
 }
 
 Point2f EyeTracker::opticalFlowForBlinkDetection(){
@@ -351,7 +413,7 @@ Point2f EyeTracker::opticalFlowForBlinkDetection(){
     int k(0);
     for (size_t i = 0; i<eyePoints[1].size(); i++)
     {
-        if (status[i] && getDis(eyePoints[0][i], eyePoints[1][i]) > 10) // check if the point is qualified
+        if (status[i] && getDis(eyePoints[0][i], eyePoints[1][i]) > 0) // check if the point is qualified
         {
             eyePoints[1][k] = eyePoints[1][i];
             eyePoints[0][k++] = eyePoints[0][i];

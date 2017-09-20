@@ -59,6 +59,7 @@ public:
     void drawTrackingBox(Mat &dst);
     // for tuning
     Point2f rotatePoint(Point2f center, double angle, Point2f ptr);
+    void getOptDisTunedParameter();
     static bool compDis(const DisFilter a, const DisFilter b);
     void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
     // for blink detection
@@ -66,6 +67,7 @@ public:
     bool blinkDetection();
     void grayIntegral(Mat src, Mat &dst);
     Point2f opticalFlowForBlinkDetection();
+    void getHistogram();
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -105,14 +107,15 @@ public:
     // for tune by detection
     bool isTuning = false;
     Point2f averageCenterDisplacement;
-    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95, rectForTrackPercentage = 1.35;
+    const double tuningPercentageForSideConst = 0.25, tuningPercentageForCenterConst = 0.95, rectForTrackPercentageConst = 1.45;
+    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95;
     double centerFilterPercentage = 0.20;
     float lostFrame = 0;
     int badEyeCountForTuning = 0;
     bool isLostFrame = false;
     // for blink detector:
     int badEyeCount = 0;
-    Size eyeSize = Size(200, 200);
+    Size eyeSize = Size(100, 100);
     Mat curEye, prevEye;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
