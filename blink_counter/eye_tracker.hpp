@@ -65,7 +65,9 @@ public:
     // for blink detection
     bool getEyeRegionWithCheck();
     bool blinkDetection();
-    void grayIntegral(Mat src, Mat &dst);
+    Point2f thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, double tempThreshold);
+    double getThresholdEstimation(Mat &src);
+    int getBlackPixNo(Mat src);
     Point2f opticalFlowForBlinkDetection();
     void getHistogram();
     // optic flow tracking
@@ -107,16 +109,20 @@ public:
     // for tune by detection
     bool isTuning = false;
     Point2f averageCenterDisplacement;
-    const double tuningPercentageForSideConst = 0.25, tuningPercentageForCenterConst = 0.95, rectForTrackPercentageConst = 1.45;
-    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95;
+    const double tuningPercentageForAngleConst = 0.90, tuningPercentageForSideConst = 0.25, tuningPercentageForCenterConst = 0.95, rectForTrackPercentageConst = 1.45;
+    double tuningPercentageForSide = 0.25, tuningPercentageForCenter = 0.95, tuningPercentageForAngle = 0.90;
     double centerFilterPercentage = 0.20;
     float lostFrame = 0;
     int badEyeCountForTuning = 0;
     bool isLostFrame = false;
     // for blink detector:
     int badEyeCount = 0;
-    Size eyeSize = Size(100, 100);
-    Mat curEye, prevEye;
+    Size eyeSize = Size(200, 200);
+    Mat curEye, prevEye, assumedClosedEye;
+    double blinkOptFilterPercentage = 0.1;
+    double thresholdFilterPercentage = 0.4;
+    bool isDoubleCheck = false;
+    int isThisFrame = 0, waitFrame = 5;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
