@@ -25,6 +25,7 @@
 #include <opencv2/core/utility.hpp>
 #include <opencv2/tracking.hpp>
 #include <time.h>
+#include <sstream>
 
 using namespace std;
 using namespace cv;
@@ -45,6 +46,29 @@ private:
         bool flag;
     };
     
+    struct Eye{
+        Mat mat;
+        Rect rect;
+        double dev;
+        double thresh;
+        Eye &operator=(const Eye &p){
+            mat = p.mat.clone();
+            rect = p.rect;
+            dev = p.dev;
+            thresh = p.thresh;
+            return *this;
+        }
+        Eye(){
+            mat = Mat();
+            rect = Rect();
+            dev = 0;
+            thresh = 0;
+        }
+        Mat getEye(){
+            return mat(rect).clone();
+        }
+    };
+    
 public:
     // for image processing
     double rescalePyr(Mat src, Mat &dst, double inputScale);
@@ -54,7 +78,7 @@ public:
     vector<Rect> detectEyeAtAngle(Mat src, double angle, Size minEye, bool isFace = false);
     bool findMostRightEyes(vector<Rect> eyes, vector<Rect> &rigthEye);
     // for tracking box
-    Rect enlargedRect(Rect src, float times, double inputScale);
+    Rect enlargedRect(Rect src, float times, double inputScale, bool isWithinTB = false);
     void getTrackingBox();
     void drawTrackingBox(Mat &dst);
     // for tuning
@@ -65,11 +89,10 @@ public:
     // for blink detection
     bool getEyeRegionWithCheck();
     bool blinkDetection();
-    Point2f thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, double tempThreshold);
+    Point2f thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, double tempThreshold, double &dev, bool isGetDev = true);
     double getThresholdEstimation(Mat &src);
     int getBlackPixNo(Mat src);
     Point2f opticalFlowForBlinkDetection();
-    void getHistogram();
     // optic flow tracking
     void opticalFlow(Rect src); //tracking ROI
     bool addNewPoints();
@@ -86,6 +109,19 @@ public:
     double getDis(Point2f t, Point2f o = Point2f(0, 0)){
         t = t - o;
         return sqrt(t.x * t.x + t.y * t.y);
+    }
+    double getDev(int* start, int n, double &mean){
+        mean = 0;
+        for(int i=0; i<n; i++){
+            mean += start[i];
+        }
+        mean /= n;
+        double dev(0);
+        for(int i=0; i<n; i++){
+            dev += (start[i] - mean) * (start[i] - mean);
+        }
+        dev /= n;
+        return sqrt(dev);
     }
     
 public:
@@ -118,9 +154,10 @@ public:
     // for blink detector:
     int badEyeCount = 0;
     Size eyeSize = Size(200, 200);
-    Mat curEye, prevEye, assumedClosedEye;
+    Eye curEye, prevEye, assumedClosedEye;
     double blinkOptFilterPercentage = 0.1;
     double thresholdFilterPercentage = 0.4;
+    double irisPixels = 200;
     bool isDoubleCheck = false;
     int isThisFrame = 0, waitFrame = 5;
     // for optic flow:
