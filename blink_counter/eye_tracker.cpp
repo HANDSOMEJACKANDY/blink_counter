@@ -274,7 +274,7 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     // count low quality grabed eyes: unmatched result between tune and optflow, no eye found
     bool isBadEye;
     if(isTuning)
-        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15 || getDis(optDisplacement) > 15;
+        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15 || getDis(optDisplacement) > 40;
     else{ // this is to assist checking if there is a eye grabed if tuning is not there
         vector<Rect> tempEyes;
         isLostFrame = !findMostRightEyes(detectEyeAtAngle(originFrame(enlargedRect(originTrackingBox, 1, 1)), tbAngle, Size(40, 40)), tempEyes);
@@ -343,7 +343,7 @@ bool EyeTracker::blinkDetection(){
         return false;
     
     Mat tempOpenEye, tempClosedEye, tempPrevEye, tempCurEye;
-    double openDevSameThresh, closeDevSameThresh, openDevIntrinsic, closeDevIntrinsic;
+    double openDevSameThresh, closeDevSameThresh, openDevIntrinsic, closeDevIntrinsic, sameChange, intriChange;
     bool isBlinkPossible = false;
 
     if(!isDoubleCheck){
@@ -360,13 +360,16 @@ bool EyeTracker::blinkDetection(){
         thresholdWithGrayIntegralFiltering(tempPrevEye, tempClosedEye, curEye.thresh, closeDevSameThresh);
         closeDevIntrinsic = assumedClosedEye.dev;
     }
+    
+    sameChange = (openDevSameThresh - closeDevSameThresh) / openDevSameThresh;
+    intriChange = (openDevIntrinsic - closeDevIntrinsic) / openDevSameThresh;
     if(isDoubleCheck)
         cout << "double check" << endl;
     else
         cout << "first  check" << endl;
-    cout << "same thresh:      " <<(openDevSameThresh - closeDevSameThresh) / openDevSameThresh << endl;
-    cout << "intr thresh:      " <<(openDevIntrinsic - closeDevIntrinsic) / openDevSameThresh << endl;
-    if((openDevSameThresh - closeDevSameThresh) / openDevSameThresh >=  0.2 && (openDevIntrinsic - closeDevIntrinsic) / openDevSameThresh >= 0.2)
+    cout << "same thresh:      " << sameChange << endl;
+    cout << "intr thresh:      " << intriChange << endl;
+    if(sameChange >=  0.2 && intriChange >= 0.2 /*|| sameChange >= 0.35 || intriChange >= 0.35*/)
         isBlinkPossible = true;
     if(isBlinkPossible){ // estimate a probable blink
         if(isDoubleCheck){
@@ -556,12 +559,6 @@ Point2f EyeTracker::thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, doubl
         s >> tempMean;
         X = tempDev;
         putText(paintX, X, Point(0, paintX.cols / 2), FONT_HERSHEY_PLAIN, 1, 255);
-        s << int(devY);
-        s >> tempDev;
-        s << meanY;
-        s >> tempMean;
-        Y =  tempDev;
-        putText(paintY, Y, Point(0, paintX.cols / 2), FONT_HERSHEY_PLAIN, 1, 255);
     }
     
     namedWindow("thresh", CV_WINDOW_AUTOSIZE);
@@ -624,10 +621,10 @@ double EyeTracker::getThresholdEstimation(Mat &src){ // do gray integral to thre
         threshold(blurEye, temp, tempThreshold, 255, THRESH_BINARY);
         blackPortion = getBlackPixNo(temp) / double(temp.rows * temp.cols);
         cout << "tuning " <<blackPortion << endl;
-        if(blackPortion > 0.2)
+        if(blackPortion > 0.16)
             tempThreshold -= 3;
-        else if(blackPortion < 0.1)
-            tempThreshold += 2;
+        else if(blackPortion < 0.075)
+            tempThreshold += 3;
         else
             return tempThreshold;
     }

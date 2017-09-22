@@ -125,7 +125,7 @@ public:
     }
     
 public:
-    string inputDir = "blink_counter/haarcascades/";
+    string inputDir = "blink_counter_data/haarcascades/";
     String face_cascade_name = inputDir + "haarcascade_frontalface_alt.xml";
     String eyes_cascade_name = inputDir + "haarcascade_lefteye_2splits.xml";
     CascadeClassifier face_cascade;
