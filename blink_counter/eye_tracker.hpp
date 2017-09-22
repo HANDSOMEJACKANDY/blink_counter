@@ -26,6 +26,7 @@
 #include <opencv2/tracking.hpp>
 #include <time.h>
 #include <sstream>
+#include <fstream>
 
 using namespace std;
 using namespace cv;
@@ -33,6 +34,7 @@ using namespace cv;
 class EyeTracker{
 public:
     EyeTracker();
+    ~EyeTracker();
     
 public:
     void trackByOptFlow(double inputScale);
@@ -41,7 +43,7 @@ public:
     bool getEyeRegionWithCheck();
     bool blinkDetection();
     int finalProduct();
-    
+    void writeBlinkToFile();
     
 private:
     struct DisFilter{ //to filt the point that may be falsely matched
@@ -74,6 +76,8 @@ private:
     };
     
 public:
+    // for output file
+    ofstream outputFile;
     // for image processing
     double rescalePyr(Mat src, Mat &dst, double inputScale);
     double rescaleSize(Mat src, Mat &dst, double inputScale);
@@ -127,6 +131,11 @@ public:
     }
     
 public:
+    // for final output
+    clock_t startMin;
+    double blinkCounter, blinkCounterTen;
+    int timeCounter;
+    // for eye detection
     string inputDir = "blink_counter_data/haarcascades/";
     String face_cascade_name = inputDir + "haarcascade_frontalface_alt.xml";
     String eyes_cascade_name = inputDir + "haarcascade_lefteye_2splits.xml";
@@ -163,7 +172,7 @@ public:
     double devChangeThreshold = 0.18;
     bool isDoubleCheck = false;
     int isThisFrame = 0, waitFrame = 3;
-    string blinkText;
+    bool isBlink = false;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置

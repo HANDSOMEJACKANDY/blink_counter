@@ -12,6 +12,19 @@
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
 EyeTracker::EyeTracker(){
+    // open outputfile
+    stringstream ss;
+    string buffer, fileName;
+    time_t tt = time(NULL);
+    tm* t= localtime(&tt);
+    ss << "Date_" << t->tm_year + 1900 << "." << t->tm_mon + 1 << "." << t->tm_mday << "_Time_" << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec;
+    ss >> buffer;
+    fileName = buffer + ".csv";
+    cout << fileName << endl;
+    outputFile.open(fileName.c_str());
+    outputFile << "Test infomation , " << buffer << endl;
+    outputFile << "per minute: , " << ", " << "per ten minutes: , " << endl;
+
     //  init face and eye casacade
     if( !face_cascade.load( face_cascade_name ) ){
         printf("face_cascade_name加载失败\n");
@@ -21,6 +34,14 @@ EyeTracker::EyeTracker(){
         printf("eye_cascade_name加载失败\n");
         getchar();
     }
+    // init blink counter
+    startMin = clock();
+    blinkCounter = 0;
+    timeCounter = 0;
+}
+
+EyeTracker::~EyeTracker(){
+    outputFile.close();
 }
 
 int EyeTracker::finalProduct(){
@@ -34,7 +55,6 @@ int EyeTracker::finalProduct(){
         return -1;
     }
     
-    namedWindow("curFrame");
     namedWindow("camera");
     
     while(waitKey(1) != 27){
@@ -43,17 +63,33 @@ int EyeTracker::finalProduct(){
         setTimeStart();
         trackByOptFlow(0.5);
         tuneByDetection(5, 0.5);
-        if(blinkDetection())
-            blinkText = "Blink!!";
-        else
-            blinkText = "";
+        isBlink = blinkDetection();
         setTimeEnd();
         drawTrackingBox(frame);
+        writeBlinkToFile();
         imshow("camera", frame);
-        imshow("curFrame", curFrame);
         cout << getAverageTime() << endl;
     }
     return 0;
+}
+
+void EyeTracker::writeBlinkToFile(){
+    if(isBlink){
+        blinkCounter++;
+        blinkCounterTen++;
+    }
+    if(clock() - startMin >= 1 * CLOCKS_PER_SEC){
+        outputFile << ++timeCounter << " , " << blinkCounter;
+        startMin = clock();
+        blinkCounter = 0;
+        if(timeCounter % 10 == 0){
+            outputFile << " , " << timeCounter / 10 << " , " << blinkCounterTen / 10;
+            blinkCounterTen = 0;
+        }
+        else
+            outputFile << " , , ";
+        outputFile << endl;
+    }
 }
 
 void EyeTracker::trackByOptFlow(double inputScale){
@@ -301,7 +337,7 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     // count low quality grabed eyes: unmatched result between tune and optflow, no eye found
     bool isBadEye;
     if(isTuning)
-        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.25 || getDis(optDisplacement) > 40;
+        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15 || getDis(optDisplacement) > 35;
     else{ // this is to assist checking if there is a eye grabed if tuning is not there
         vector<Rect> tempEyes;
         isLostFrame = !findMostRightEyes(detectEyeAtAngle(originFrame(enlargedRect(originTrackingBox, 1, 1)), tbAngle, Size(40, 40)), tempEyes);
@@ -645,9 +681,9 @@ double EyeTracker::getThresholdEstimation(Mat &src){ // do gray integral to thre
     for(int i=0; i<10; i++){
         threshold(blurEye, temp, tempThreshold, 255, THRESH_BINARY);
         blackPortion = getBlackPixNo(temp) / double(temp.rows * temp.cols);
-        if(blackPortion > 0.15 || getBlackPixNo(temp) > irisPixels * 1.5)
+        if(blackPortion > 0.18 || getBlackPixNo(temp) > irisPixels * 1.5)
             tempThreshold -= 2;
-        else if(blackPortion < 0.075 && getBlackPixNo(temp) < irisPixels * 0.25)
+        else if(blackPortion < 0.08 || getBlackPixNo(temp) < irisPixels * 0.25)
             tempThreshold += 2;
         else
             return tempThreshold;
@@ -938,7 +974,8 @@ void EyeTracker::drawTrackingBox(Mat &dst){
     
     getTrackingBox();
     if(!trackingBox.empty()){
-        putText(dst, blinkText, originTrackingBox.tl(), FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0, 0, 255), 1, 8, 0);
+        if(isBlink)
+            putText(dst, "Blink", originTrackingBox.tl() + Point(0, -3), FONT_HERSHEY_COMPLEX, 0.8, cv::Scalar(0, 0, 255), 2, 8, 0);
         rectangle(dst, originTrackingBox, Scalar(0, 0, 255), 3);
     }
 }
