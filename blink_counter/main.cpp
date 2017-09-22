@@ -24,34 +24,7 @@ using namespace cv;
 
 
 int main(){
-    VideoCapture cap;
-    Mat frame;
     EyeTracker tracker;
-    
-    cap.open(0);
-    
-    if(!cap.isOpened()){
-        cout << "fail to open camera" << endl;
-        return -1;
-    }
-    
-    namedWindow("curFrame");
-    namedWindow("camera");
-
-    while(waitKey(1) != 27){
-        cap >> frame;
-        frame.copyTo(tracker.originFrame);
-        tracker.setTimeStart();
-        tracker.trackByOptFlow(0.5);
-        tracker.tuneByDetection(5, 0.5);
-        tracker.blinkDetection();
-        tracker.setTimeEnd();
-        tracker.drawTrackingBox(frame);
-        tracker.drawOptFlow(frame);
-        imshow("camera", frame);
-        imshow("curFrame", tracker.curFrame);
-         cout << tracker.getAverageTime() << endl;
-    }
-    
+    tracker.finalProduct();
     return 0;
 }

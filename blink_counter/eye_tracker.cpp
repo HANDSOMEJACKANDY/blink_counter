@@ -23,6 +23,39 @@ EyeTracker::EyeTracker(){
     }
 }
 
+int EyeTracker::finalProduct(){
+    VideoCapture cap;
+    Mat frame;
+    
+    cap.open(0);
+    
+    if(!cap.isOpened()){
+        cout << "fail to open camera" << endl;
+        return -1;
+    }
+    
+    namedWindow("curFrame");
+    namedWindow("camera");
+    
+    while(waitKey(1) != 27){
+        cap >> frame;
+        frame.copyTo(originFrame);
+        setTimeStart();
+        trackByOptFlow(0.5);
+        tuneByDetection(5, 0.5);
+        if(blinkDetection())
+            blinkText = "Blink!!";
+        else
+            blinkText = "";
+        setTimeEnd();
+        drawTrackingBox(frame);
+        imshow("camera", frame);
+        imshow("curFrame", curFrame);
+        cout << getAverageTime() << endl;
+    }
+    return 0;
+}
+
 void EyeTracker::trackByOptFlow(double inputScale){
     if(curFrame.empty()){
         originFrame.copyTo(curFrame);
@@ -112,9 +145,6 @@ void EyeTracker::trackByOptFlow(double inputScale){
             else
                 is_tracking = false;
         }
-        
-        //cout << "instant time: " << ((getTickCount() - start) / getTickFrequency()) * 1000 << endl;
-        //sumTime += ((getTickCount() - start) / getTickFrequency()) * 1000; //output the time the process takes
     }
 }
 
@@ -126,8 +156,7 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
     }
     else
         isTuning = true;
-    
-    namedWindow("tune");
+
     // rescaling
     Mat scaledFrame;
 //    rescalePyr(originFrame, scaledFrame, inputScale);
@@ -186,7 +215,6 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
             sigFlag[i%2]++;
     }
     
-    cout << "                                        " <<optDisplacement << endl;
     // check if search for the eye in a larger scale
     if(eyes.size() == 0){
         if(trackRegionScale == 1){
@@ -233,7 +261,6 @@ bool EyeTracker::tuneByDetection(double step, double inputScale, double trackReg
         
         circle(target, (Point2f(tbCenter) + averageCenterDisplacement) / scale * inputScale - displacement, 2, Scalar(0, 0, 255), 2);
         rescaleSize(target, target, 1 / inputScale);
-        imshow("tune", target);
 
         // updating tracking box parameter
         // do para tuning:
@@ -274,7 +301,7 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     // count low quality grabed eyes: unmatched result between tune and optflow, no eye found
     bool isBadEye;
     if(isTuning)
-        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.15 || getDis(optDisplacement) > 40;
+        isBadEye = isLostFrame || getDis(averageCenterDisplacement) > tbWidth * 0.25 || getDis(optDisplacement) > 40;
     else{ // this is to assist checking if there is a eye grabed if tuning is not there
         vector<Rect> tempEyes;
         isLostFrame = !findMostRightEyes(detectEyeAtAngle(originFrame(enlargedRect(originTrackingBox, 1, 1)), tbAngle, Size(40, 40)), tempEyes);
@@ -313,20 +340,21 @@ bool EyeTracker::getEyeRegionWithCheck(){ // only return true when consecutive t
     curEye.rect = enlargedRect(smallEyeRegion, 1, 0, true);
     // make the center of cureye closer to the center of iris
     Mat tempMat = curEye.getEye();
+    if(tempMat.empty()){
+        badEyeCount++;
+        return false;
+    }
     Point2f irisDisplacement;
     double bufferDev;
     curEye.thresh = getThresholdEstimation(tempMat);
     irisDisplacement = thresholdWithGrayIntegralFiltering(tempMat, tempMat, curEye.thresh, bufferDev, false);
-    if(getDis(irisDisplacement) <= curEye.rect.width * 0.4)
+    if(getDis(irisDisplacement) <= curEye.rect.width * 0.5)
         curEye.rect += Point(irisDisplacement) * 0.5;
     curEye.rect = enlargedRect(curEye.rect, 1, 0, true);
     // update curEye deviation
-    tempMat = (curEye.mat(curEye.rect)).clone();
+    tempMat = curEye.getEye();
     curEye.thresh = getThresholdEstimation(tempMat);
-    thresholdWithGrayIntegralFiltering(tempMat, tempMat, curEye.thresh, curEye.dev, true);
-    
-    namedWindow("eye");
-    imshow("eye", curEye.getEye());
+    thresholdWithGrayIntegralFiltering(tempMat, tempMat, curEye.thresh, curEye.dev);
     
     // wait until two eyes are grabed
     if(prevEye.mat.empty()){
@@ -363,21 +391,19 @@ bool EyeTracker::blinkDetection(){
     
     sameChange = (openDevSameThresh - closeDevSameThresh) / openDevSameThresh;
     intriChange = (openDevIntrinsic - closeDevIntrinsic) / openDevSameThresh;
-    if(isDoubleCheck)
-        cout << "double check" << endl;
-    else
-        cout << "first  check" << endl;
-    cout << "same thresh:      " << sameChange << endl;
-    cout << "intr thresh:      " << intriChange << endl;
-    if(sameChange >=  0.2 && intriChange >= 0.2 /*|| sameChange >= 0.35 || intriChange >= 0.35*/)
+    sameChange = sameChange > 0 ? sameChange : 0;
+    intriChange = intriChange > 0 ? intriChange : 0;
+    cout << "same: " << sameChange << endl;
+    cout << "intr: " << intriChange << endl;
+    cout << "port: " << (sameChange + intriChange) / 2 << endl;
+    if(!isDoubleCheck && (sameChange + intriChange) / 2 >= devChangeThreshold)
+        isBlinkPossible = true;
+    else if(isDoubleCheck && (sameChange + intriChange) / 2 >= devChangeThreshold * 0.8)
         isBlinkPossible = true;
     if(isBlinkPossible){ // estimate a probable blink
         if(isDoubleCheck){
             isDoubleCheck = false;
             isThisFrame = 0;
-            cout << "                                                              blink!!!!!   " << endl;
-            namedWindow("blinkClose");
-            imshow("blinkClose", tempClosedEye);
             return true;
         }
         else{
@@ -385,6 +411,10 @@ bool EyeTracker::blinkDetection(){
             isDoubleCheck = true;
             isThisFrame = 0;
         }
+    }
+    else if(isDoubleCheck){
+        isDoubleCheck = false;
+        isThisFrame = 0;
     }
 
     return false;
@@ -560,15 +590,10 @@ Point2f EyeTracker::thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, doubl
         X = tempDev;
         putText(paintX, X, Point(0, paintX.cols / 2), FONT_HERSHEY_PLAIN, 1, 255);
     }
-    
-    namedWindow("thresh", CV_WINDOW_AUTOSIZE);
-    namedWindow("X", CV_WINDOW_AUTOSIZE);
-    namedWindow("Y", CV_WINDOW_AUTOSIZE);
-    //显示图像
-    imshow("thresh", dst);
-    imshow("X", paintX);
-    imshow("Y", paintY);
-    
+    namedWindow("dev");
+    imshow("dev", paintX);
+    namedWindow("thr");
+    imshow("thr", dst);
     return sumCenter;
 };
 
@@ -620,11 +645,10 @@ double EyeTracker::getThresholdEstimation(Mat &src){ // do gray integral to thre
     for(int i=0; i<10; i++){
         threshold(blurEye, temp, tempThreshold, 255, THRESH_BINARY);
         blackPortion = getBlackPixNo(temp) / double(temp.rows * temp.cols);
-        cout << "tuning " <<blackPortion << endl;
-        if(blackPortion > 0.16)
-            tempThreshold -= 3;
-        else if(blackPortion < 0.075)
-            tempThreshold += 3;
+        if(blackPortion > 0.15 || getBlackPixNo(temp) > irisPixels * 1.5)
+            tempThreshold -= 2;
+        else if(blackPortion < 0.075 && getBlackPixNo(temp) < irisPixels * 0.25)
+            tempThreshold += 2;
         else
             return tempThreshold;
     }
@@ -645,7 +669,6 @@ Point2f EyeTracker::opticalFlowForBlinkDetection(){ // useless for now
     for(int i=0; i<eyePoints[0].size(); i++)
         if(status[i])
             counter++;
-    cout << "             asdfasdfasdfjaskl;dfjlkajsdfjal;sjdf;lajs;dfja;lksdjf;klajdskl;fa:" <<counter / eyePoints[0].size() << endl;
     
     int k(0);
     DisFilter tempDis;
@@ -737,8 +760,6 @@ Point2f EyeTracker::opticalFlowForBlinkDetection(){ // useless for now
         line(dst, eyePoints[0][i], eyePoints[1][i], Scalar(0));
         circle(dst, eyePoints[1][i], 3, Scalar(0), -1);
     }
-    namedWindow("eyess");
-    imshow("eyess", dst);
     
     return Point2f(0, 0);
 }
@@ -748,7 +769,6 @@ bool EyeTracker::compDis(const DisFilter a, const DisFilter b){
 }
 
 void EyeTracker::kMeansTuning(vector<Point2f> &eyeCenters, double inputScale){ // way too slow method…… though has significant effect
-    namedWindow("kmeans");
     // doing clustering of detected eye centers
     Mat points(int(eyeCenters.size()), 1, CV_32FC2), labels;
     for(size_t r=0; r<eyeCenters.size(); r++){
@@ -765,7 +785,6 @@ void EyeTracker::kMeansTuning(vector<Point2f> &eyeCenters, double inputScale){ /
         eyeCenters[i] = centers.at<Point2f>(int(i));
         circle(originFrame, eyeCenters[i] / scale, 3, Scalar(0, 255, 0), 3);
     }
-    imshow("kmeans", originFrame);
     // waitKey(0);
     
     // looking for the closest cluster
@@ -798,19 +817,12 @@ double EyeTracker::rescalePyr(Mat src, Mat &dst, double inputScale){
     }
     else
         tempScale = 1;
-    if(inputScale != 1){
-        cout << "inputScale is not the power of 2" << endl;
-        cout << "So we use scale: " << tempScale << " instead" << endl;
-    }
-    else
-        cout << "Pyr:rescaling successful" << endl;
     
     return tempScale;
 }
 
 double EyeTracker::rescaleSize(Mat src, Mat &dst, double inputScale){
     resize(src, dst, Size(0, 0), inputScale, inputScale);
-    cout << "Size:rescaling successful" << endl;
     
     return inputScale;
 }
@@ -925,8 +937,10 @@ void EyeTracker::drawTrackingBox(Mat &dst){
         originFrame.copyTo(dst);
     
     getTrackingBox();
-    if(!trackingBox.empty())
+    if(!trackingBox.empty()){
+        putText(dst, blinkText, originTrackingBox.tl(), FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0, 0, 255), 1, 8, 0);
         rectangle(dst, originTrackingBox, Scalar(0, 0, 255), 3);
+    }
 }
 
 Rect EyeTracker::enlargedRect(Rect src, float times, double inputScale, bool isWithinTB){

@@ -439,8 +439,8 @@
 		E851493D1F45EF02002B14E0 /* blink_counter */ = {
 			isa = PBXGroup;
 			children = (
-				E851493E1F45EF02002B14E0 /* main.cpp */,
 				E83C4C301F5809A600A19433 /* eye_tracker.cpp */,
+				E851493E1F45EF02002B14E0 /* main.cpp */,
 				E83C4C311F5809A600A19433 /* eye_tracker.hpp */,
 			);
 			path = blink_counter;

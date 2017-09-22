@@ -38,6 +38,10 @@ public:
     void trackByOptFlow(double inputScale);
     bool tuneByDetection(double step, double inputScale, double trackRegionScale = 1);
     void checkIsTracking();
+    bool getEyeRegionWithCheck();
+    bool blinkDetection();
+    int finalProduct();
+    
     
 private:
     struct DisFilter{ //to filt the point that may be falsely matched
@@ -87,8 +91,6 @@ public:
     static bool compDis(const DisFilter a, const DisFilter b);
     void kMeansTuning(vector<Point2f> &eyeCenters, double inputScale);
     // for blink detection
-    bool getEyeRegionWithCheck();
-    bool blinkDetection();
     Point2f thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, double tempThreshold, double &dev, bool isGetDev = true);
     double getThresholdEstimation(Mat &src);
     int getBlackPixNo(Mat src);
@@ -158,8 +160,10 @@ public:
     double blinkOptFilterPercentage = 0.1;
     double thresholdFilterPercentage = 0.4;
     double irisPixels = 200;
+    double devChangeThreshold = 0.18;
     bool isDoubleCheck = false;
-    int isThisFrame = 0, waitFrame = 5;
+    int isThisFrame = 0, waitFrame = 3;
+    string blinkText;
     // for optic flow:
     Mat curFrame, prevFrame, colorFrame;
     vector<Point2f> point[2]; // point0为特征点的原来位置，point1为特征点的新位置
