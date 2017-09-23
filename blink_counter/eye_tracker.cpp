@@ -17,7 +17,7 @@ EyeTracker::EyeTracker(){
     string buffer, fileName;
     time_t tt = time(NULL);
     tm* t= localtime(&tt);
-    ss << "Date_" << t->tm_year + 1900 << "." << t->tm_mon + 1 << "." << t->tm_mday << "_Time_" << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec;
+    ss << "blink_counter_data/test_data/Date_" << t->tm_year + 1900 << "." << t->tm_mon + 1 << "." << t->tm_mday << "_Time_" << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec;
     ss >> buffer;
     fileName = buffer + ".csv";
     cout << fileName << endl;
@@ -429,9 +429,6 @@ bool EyeTracker::blinkDetection(){
     intriChange = (openDevIntrinsic - closeDevIntrinsic) / openDevSameThresh;
     sameChange = sameChange > 0 ? sameChange : 0;
     intriChange = intriChange > 0 ? intriChange : 0;
-    cout << "same: " << sameChange << endl;
-    cout << "intr: " << intriChange << endl;
-    cout << "port: " << (sameChange + intriChange) / 2 << endl;
     if(!isDoubleCheck && (sameChange + intriChange) / 2 >= devChangeThreshold)
         isBlinkPossible = true;
     else if(isDoubleCheck && (sameChange + intriChange) / 2 >= devChangeThreshold * 0.8)
@@ -591,7 +588,7 @@ Point2f EyeTracker::thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, doubl
     
     if(isGetDev){
         // calculate dev for blink detection use
-        double devX, meanX, devY, meanY;
+        double devX, meanX;
         double targetRegionLength = irisWidth * 2;
         int regionStart, actualLen;
         Point2f newCenter = 0.3 * sumCenter + Point2f(src.cols/2, src.rows/2);
@@ -604,14 +601,6 @@ Point2f EyeTracker::thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, doubl
         regionStart = (newCenter.x - targetRegionLength / 2) >= 0 ? (newCenter.x - targetRegionLength / 2) : 0;
         actualLen = (regionStart + targetRegionLength) < dst.cols ? targetRegionLength : (dst.cols - 1);
         devX = getDev(v + regionStart, actualLen, meanX);
-        for(int i=dst.rows-1; i>=0; i--){
-            if(i != 0){
-                h[i] = h[i] - h[i-1];
-            }
-        }
-        regionStart = (newCenter.y - targetRegionLength / 2) >= 0 ? (newCenter.y - targetRegionLength / 2) : 0;
-        actualLen = (regionStart + targetRegionLength) < dst.rows ? targetRegionLength : (dst.rows - 1);
-        devY = getDev(h + regionStart, actualLen, meanY);
         
         dev = devX;
         
@@ -626,10 +615,13 @@ Point2f EyeTracker::thresholdWithGrayIntegralFiltering(Mat &src, Mat &dst, doubl
         X = tempDev;
         putText(paintX, X, Point(0, paintX.cols / 2), FONT_HERSHEY_PLAIN, 1, 255);
     }
-    namedWindow("dev");
-    imshow("dev", paintX);
-    namedWindow("thr");
-    imshow("thr", dst);
+//    namedWindow("dev");
+//    imshow("dev", paintX);
+//    namedWindow("thr");
+//    imshow("thr", dst);
+    
+    delete [] h;
+    delete [] v;
     return sumCenter;
 };
 
@@ -675,6 +667,9 @@ double EyeTracker::getThresholdEstimation(Mat &src){ // do gray integral to thre
     }
     
     tempThreshold /= 3;
+    
+    delete [] grayH;
+    delete [] grayV;
     
     Mat temp;
     double blackPortion;
