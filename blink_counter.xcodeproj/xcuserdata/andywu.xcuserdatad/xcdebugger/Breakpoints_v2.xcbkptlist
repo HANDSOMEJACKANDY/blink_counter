@@ -44,7 +44,9 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "968"
-            endingLineNumber = "968">
+            endingLineNumber = "968"
+            landmarkName = "EyeTracker::drawTrackingBox(Mat &amp;dst)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -203,7 +205,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1053"
             endingLineNumber = "1053"
-            landmarkName = "EyeTracker::opticalFlow(Rect src)"
+            landmarkName = "EyeTracker::addNewPoints()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -251,8 +253,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1052"
             endingLineNumber = "1052"
-            landmarkName = "EyeTracker::opticalFlow(Rect src)"
-            landmarkType = "7">
+            landmarkName = "unknown"
+            landmarkType = "0">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -508,7 +510,9 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "804"
-            endingLineNumber = "804">
+            endingLineNumber = "804"
+            landmarkName = "EyeTracker::kMeansTuning(vector&lt;Point2f&gt; &amp;eyeCenters, double inputScale)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

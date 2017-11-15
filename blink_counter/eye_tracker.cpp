@@ -78,7 +78,7 @@ void EyeTracker::writeBlinkToFile(){
         blinkCounter++;
         blinkCounterTen++;
     }
-    if(clock() - startMin >= 1 * CLOCKS_PER_SEC){
+    if(clock() - startMin >= 60 * CLOCKS_PER_SEC){
         outputFile << ++timeCounter << " , " << blinkCounter;
         startMin = clock();
         blinkCounter = 0;

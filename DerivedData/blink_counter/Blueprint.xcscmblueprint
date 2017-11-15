@@ -1,0 +1,23 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "79B9DD894DFA2B83320A3B30CA524882B6549B3C",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "79B9DD894DFA2B83320A3B30CA524882B6549B3C" : 0
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "80634175-C255-403D-87DC-06AB670DFFDE",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "79B9DD894DFA2B83320A3B30CA524882B6549B3C" : "blink_counter\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "blink_counter",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "blink_counter.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/HANDSOMEJACKANDY\/blink_counter.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "79B9DD894DFA2B83320A3B30CA524882B6549B3C"
+    }
+  ]
+}
